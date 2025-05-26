@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getAllConfigs, setConfig, initializeDefaultConfigs } from '@/lib/config';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Obter todas as configurações
 export async function GET(request: NextRequest) {
   try {

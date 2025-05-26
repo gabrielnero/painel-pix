@@ -5,6 +5,8 @@ import { Payment } from '@/lib/models';
 import { generatePixCode, generatePixQrCode } from '@/lib/pix';
 import { validatePixConfig } from '@/lib/config';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

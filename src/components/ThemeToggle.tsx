@@ -1,12 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FaSun, FaMoon, FaCog } from 'react-icons/fa';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export default function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  
+  // Evitar hidration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="p-2 text-gray-400">
+        <FaCog className="h-5 w-5" />
+      </div>
+    );
+  }
+
+  const { theme, setTheme } = useTheme();
 
   const toggleTheme = (newTheme: 'light' | 'dark') => {
     setTheme(newTheme);

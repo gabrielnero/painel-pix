@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { primepagService } from '@/lib/services/primepag';
 import { verifyAuth } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
