@@ -3,6 +3,7 @@ import { verifyAuth } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
 import { Payment } from '@/lib/models';
 import { generatePixCode, generatePixQrCode } from '@/lib/pix';
+import { validatePixConfig } from '@/lib/config';
 
 export async function POST(request: NextRequest) {
   try {
@@ -61,13 +62,23 @@ export async function POST(request: NextRequest) {
     try {
       await connectToDatabase();
 
-      // Gerar código PIX simulado
-      const pixCode = generatePixCode({
+      // Validar configurações do sistema antes de gerar PIX
+      const configValidation = await validatePixConfig();
+      if (!configValidation.valid) {
+        return NextResponse.json({
+          success: false,
+          message: `Configurações incompletas: ${configValidation.missing.join(', ')}. Configure no painel administrativo.`,
+          missingConfigs: configValidation.missing
+        }, { status: 400 });
+      }
+
+      // Gerar código PIX usando configurações do sistema
+      const pixCode = await generatePixCode({
         value: amount,
         description: description,
         entityType: 'individual',
-        name: customer?.name || 'T0P1 PAGAMENTOS',
-        document: customer?.document || '12345678901'
+        name: customer?.name,
+        document: customer?.document
       });
 
       // Gerar QR Code

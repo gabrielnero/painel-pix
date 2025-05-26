@@ -19,7 +19,8 @@ import {
   FaBan,
   FaShieldAlt,
   FaGem,
-  FaHome
+  FaHome,
+  FaCog
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 
@@ -349,6 +350,25 @@ export default function AdminDashboard() {
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       Gerar e gerenciar convites
+                    </p>
+                  </div>
+                </div>
+              </Link>
+
+              <Link
+                href="/admin/config"
+                className="block bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-all duration-300 group"
+              >
+                <div className="flex items-center">
+                  <div className="p-3 rounded-lg bg-orange-600 hover:bg-orange-700 transition-colors duration-300">
+                    <FaCog className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="ml-4 flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                      Configurações
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      API keys, PIX e sistema
                     </p>
                   </div>
                 </div>

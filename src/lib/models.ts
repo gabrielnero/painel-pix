@@ -55,6 +55,16 @@ export interface IWalletTransaction extends Document {
   createdAt: Date;
 }
 
+export interface ISystemConfig extends Document {
+  key: string;
+  value: string;
+  description?: string;
+  isEncrypted: boolean;
+  updatedBy: mongoose.Types.ObjectId;
+  updatedAt: Date;
+  createdAt: Date;
+}
+
 // Definir esquemas
 const UserSchema = new Schema<IUser>({
   username: {
@@ -239,6 +249,39 @@ const WalletTransactionSchema = new Schema<IWalletTransaction>({
   }
 });
 
+const SystemConfigSchema = new Schema<ISystemConfig>({
+  key: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
+  value: {
+    type: String,
+    required: true
+  },
+  description: {
+    type: String
+  },
+  isEncrypted: {
+    type: Boolean,
+    default: false
+  },
+  updatedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
 // Função auxiliar para lidar com os modelos no ambiente Next.js
 const getModel = <T extends Document>(
   modelName: string,
@@ -260,4 +303,5 @@ const getModel = <T extends Document>(
 export const User = getModel<IUser>('User', UserSchema);
 export const InviteCode = getModel<IInviteCode>('InviteCode', InviteCodeSchema);
 export const Payment = getModel<IPayment>('Payment', PaymentSchema);
-export const WalletTransaction = getModel<IWalletTransaction>('WalletTransaction', WalletTransactionSchema); 
+export const WalletTransaction = getModel<IWalletTransaction>('WalletTransaction', WalletTransactionSchema);
+export const SystemConfig = getModel<ISystemConfig>('SystemConfig', SystemConfigSchema); 

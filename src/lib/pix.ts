@@ -1,7 +1,8 @@
-// Simulação de geração de códigos PIX
-// Em um ambiente real, você usaria uma API de pagamento como Mercado Pago, PagSeguro, etc.
+// Geração de códigos PIX usando configurações do sistema
+// Suporte para múltiplos provedores de pagamento
 
 import { v4 as uuidv4 } from 'uuid';
+import { getPixConfig, getApiConfig } from './config';
 
 interface PixOptions {
   value?: number;
@@ -11,17 +12,21 @@ interface PixOptions {
   document: string; // CPF ou CNPJ
 }
 
-// Função para gerar um código PIX mais realista
-export function generatePixCode(options: PixOptions): string {
+// Função para gerar um código PIX usando configurações do sistema
+export async function generatePixCode(options: PixOptions): Promise<string> {
   const { value, description, name, document } = options;
   
-  // Gerar um código PIX mais realista seguindo o padrão EMV
+  // Obter configurações do sistema
+  const config = await getPixConfig();
+  
+  // Gerar um código PIX seguindo o padrão EMV
   const merchantAccountInfo = '0014br.gov.bcb.pix';
   const merchantCategoryCode = '0000';
   const transactionCurrency = '986'; // BRL
   const countryCode = 'BR';
-  const merchantName = name.substring(0, 25).toUpperCase();
-  const merchantCity = 'SAO PAULO';
+  const merchantName = (name || config.merchantName).substring(0, 25).toUpperCase();
+  const merchantCity = config.merchantCity.substring(0, 15).toUpperCase();
+  const merchantDocument = document || config.merchantDocument;
   const txid = uuidv4().replace(/-/g, '').substring(0, 25);
   
   // Construir o código PIX seguindo o padrão EMV
@@ -29,7 +34,7 @@ export function generatePixCode(options: PixOptions): string {
   pixCode += '0102'; // Point of Initiation Method
   
   // Merchant Account Information (26)
-  const merchantInfo = `0014br.gov.bcb.pix0136${document}`;
+  const merchantInfo = `0014br.gov.bcb.pix0136${merchantDocument}`;
   pixCode += `26${merchantInfo.length.toString().padStart(2, '0')}${merchantInfo}`;
   
   pixCode += `52${merchantCategoryCode.length.toString().padStart(2, '0')}${merchantCategoryCode}`;
