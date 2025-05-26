@@ -344,9 +344,13 @@ export function PixPayment({ onSuccess, onCancel }: PixPaymentProps) {
                 {pixData.qrCodeImage ? (
                   <div className="w-full max-w-sm mx-auto bg-white p-4 rounded-lg shadow-sm">
                     <img
-                      src={`data:image/png;base64,${pixData.qrCodeImage}`}
+                      src={pixData.qrCodeImage}
                       alt="QR Code PIX"
                       className="w-full h-auto"
+                      onError={(e) => {
+                        console.error('Erro ao carregar QR Code:', e);
+                        e.currentTarget.style.display = 'none';
+                      }}
                     />
                   </div>
                 ) : (

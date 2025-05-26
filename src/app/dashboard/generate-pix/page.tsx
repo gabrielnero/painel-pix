@@ -409,9 +409,13 @@ export default function GeneratePixPage() {
                     {pixData.qrCodeImage ? (
                       <div className="inline-block bg-white p-4 rounded-xl shadow-md">
                         <img
-                          src={`data:image/png;base64,${pixData.qrCodeImage}`}
+                          src={pixData.qrCodeImage}
                           alt="QR Code PIX"
                           className="w-64 h-64 mx-auto"
+                          onError={(e) => {
+                            console.error('Erro ao carregar QR Code:', e);
+                            e.currentTarget.style.display = 'none';
+                          }}
                         />
                       </div>
                     ) : (

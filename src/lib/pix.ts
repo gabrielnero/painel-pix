@@ -11,27 +11,76 @@ interface PixOptions {
   document: string; // CPF ou CNPJ
 }
 
-// Função para gerar um código PIX aleatório
+// Função para gerar um código PIX mais realista
 export function generatePixCode(options: PixOptions): string {
-  const { value, description, entityType, name, document } = options;
+  const { value, description, name, document } = options;
   
-  // Em uma implementação real, você usaria uma API de pagamento
-  // Esta é apenas uma simulação para fins de demonstração
+  // Gerar um código PIX mais realista seguindo o padrão EMV
+  const merchantAccountInfo = '0014br.gov.bcb.pix';
+  const merchantCategoryCode = '0000';
+  const transactionCurrency = '986'; // BRL
+  const countryCode = 'BR';
+  const merchantName = name.substring(0, 25).toUpperCase();
+  const merchantCity = 'SAO PAULO';
+  const txid = uuidv4().replace(/-/g, '').substring(0, 25);
   
-  const txid = uuidv4().replace(/-/g, '').substring(0, 32);
+  // Construir o código PIX seguindo o padrão EMV
+  let pixCode = '00020101'; // Payload Format Indicator
+  pixCode += '0102'; // Point of Initiation Method
   
-  // Criamos um código PIX simulado que inclui as informações fornecidas
-  // Em um sistema real, você usaria a biblioteca oficial ou API da instituição financeira
-  const pixCode = `00020101021226${value ? value.toFixed(2).replace('.', '') : '0000'}0213${document}52040000530398654${txid}`;
+  // Merchant Account Information (26)
+  const merchantInfo = `0014br.gov.bcb.pix0136${document}`;
+  pixCode += `26${merchantInfo.length.toString().padStart(2, '0')}${merchantInfo}`;
+  
+  pixCode += `52${merchantCategoryCode.length.toString().padStart(2, '0')}${merchantCategoryCode}`;
+  pixCode += `53${transactionCurrency.length.toString().padStart(2, '0')}${transactionCurrency}`;
+  
+  if (value && value > 0) {
+    const valueStr = value.toFixed(2);
+    pixCode += `54${valueStr.length.toString().padStart(2, '0')}${valueStr}`;
+  }
+  
+  pixCode += `58${countryCode.length.toString().padStart(2, '0')}${countryCode}`;
+  pixCode += `59${merchantName.length.toString().padStart(2, '0')}${merchantName}`;
+  pixCode += `60${merchantCity.length.toString().padStart(2, '0')}${merchantCity}`;
+  
+  // Adicionar informações adicionais
+  const additionalInfo = `05${txid.length.toString().padStart(2, '0')}${txid}`;
+  pixCode += `62${additionalInfo.length.toString().padStart(2, '0')}${additionalInfo}`;
+  
+  // Calcular CRC16 (simplificado)
+  const crc = calculateCRC16(pixCode + '6304');
+  pixCode += `63${crc}`;
   
   return pixCode;
 }
 
-// Função para gerar um QR code PIX (URL simulada)
+// Função para calcular CRC16 simplificado
+function calculateCRC16(data: string): string {
+  // Implementação simplificada do CRC16
+  // Em produção, use uma biblioteca adequada
+  let crc = 0xFFFF;
+  
+  for (let i = 0; i < data.length; i++) {
+    crc ^= data.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      if (crc & 0x8000) {
+        crc = (crc << 1) ^ 0x1021;
+      } else {
+        crc <<= 1;
+      }
+      crc &= 0xFFFF;
+    }
+  }
+  
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+// Função para gerar um QR code PIX usando uma API externa
 export function generatePixQrCode(pixCode: string): string {
-  // Esta é uma simulação - em um sistema real, você usaria uma biblioteca para gerar um QR code real
-  // Ou a API do seu provedor de pagamentos
-  return `data:image/png;base64,${Buffer.from(pixCode).toString('base64')}`;
+  // Usar API do QR Server para gerar QR Code real
+  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixCode)}`;
+  return qrApiUrl;
 }
 
 // Função para simular o status de um pagamento PIX

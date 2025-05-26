@@ -66,8 +66,8 @@ export async function POST(request: NextRequest) {
         value: amount,
         description: description,
         entityType: 'individual',
-        name: customer?.name || 'Cliente',
-        document: customer?.document || '00000000000'
+        name: customer?.name || 'T0P1 PAGAMENTOS',
+        document: customer?.document || '12345678901'
       });
 
       // Gerar QR Code
