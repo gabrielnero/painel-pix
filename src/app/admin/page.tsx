@@ -79,57 +79,28 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Simular carregamento de dados
-        setTimeout(() => {
-          setStats({
-            totalUsers: 127,
-            totalModerators: 8,
-            totalAdmins: 3,
-            bannedUsers: 5,
-            vipUsers: 23,
-            activeInvites: 15,
-            totalPayments: 342,
-            pendingPayments: 12,
-            paidPayments: 318,
-            totalRevenue: 45620.75,
-            monthlyGrowth: 18.5,
-            weeklyGrowth: -3.2
-          });
+        // Buscar estatísticas reais do banco de dados
+        const response = await fetch('/api/admin/stats');
+        const data = await response.json();
 
-          setRecentActivity([
-            {
-              id: '1',
-              type: 'payment_received',
-              description: 'Pagamento de R$ 150,00 recebido',
-              timestamp: new Date(Date.now() - 300000),
-              user: 'usuario1',
-              amount: 150.00
-            },
-            {
-              id: '2',
-              type: 'user_registered',
-              description: 'Novo usuário registrado',
-              timestamp: new Date(Date.now() - 600000),
-              user: 'novousuario'
-            },
-            {
-              id: '3',
-              type: 'user_promoted',
-              description: 'Usuário promovido a VIP',
-              timestamp: new Date(Date.now() - 900000),
-              user: 'usuario2'
-            },
-            {
-              id: '4',
-              type: 'user_banned',
-              description: 'Usuário banido por violação',
-              timestamp: new Date(Date.now() - 1200000),
-              user: 'spammer'
-            }
-          ]);
+        if (data.success) {
+          setStats(data.stats);
+        } else {
+          toast.error(data.message || 'Erro ao carregar estatísticas');
+        }
 
-          setLoading(false);
-        }, 1000);
+        // Por enquanto, manter atividades recentes como mock até implementarmos um sistema de logs
+        setRecentActivity([
+          {
+            id: '1',
+            type: 'payment_received',
+            description: 'Sistema carregado com sucesso',
+            timestamp: new Date(),
+            user: 'sistema'
+          }
+        ]);
+
+        setLoading(false);
       } catch (error) {
         console.error('Erro ao carregar dados do dashboard:', error);
         toast.error('Erro ao carregar dados do dashboard');

@@ -1,53 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { FaSun, FaMoon, FaCog } from 'react-icons/fa';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function ThemeToggle() {
-  const [isDark, setIsDark] = useState(false);
+  const { theme, setTheme } = useTheme();
   const [showDropdown, setShowDropdown] = useState(false);
 
-  useEffect(() => {
-    // Verificar preferência salva ou preferência do sistema
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
-    setIsDark(shouldBeDark);
-    
-    if (shouldBeDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
-
-  const toggleTheme = (theme: 'light' | 'dark' | 'system') => {
-    if (theme === 'system') {
-      localStorage.removeItem('theme');
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setIsDark(prefersDark);
-      if (prefersDark) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    } else {
-      localStorage.setItem('theme', theme);
-      setIsDark(theme === 'dark');
-      if (theme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    }
+  const toggleTheme = (newTheme: 'light' | 'dark') => {
+    setTheme(newTheme);
     setShowDropdown(false);
-  };
-
-  const getCurrentTheme = () => {
-    const savedTheme = localStorage.getItem('theme');
-    if (!savedTheme) return 'system';
-    return savedTheme;
   };
 
   return (
@@ -70,7 +33,7 @@ export default function ThemeToggle() {
             <button
               onClick={() => toggleTheme('light')}
               className={`w-full flex items-center px-3 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                getCurrentTheme() === 'light' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
+                theme === 'light' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
               }`}
             >
               <FaSun className="mr-3 h-4 w-4" />
@@ -80,21 +43,11 @@ export default function ThemeToggle() {
             <button
               onClick={() => toggleTheme('dark')}
               className={`w-full flex items-center px-3 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                getCurrentTheme() === 'dark' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
+                theme === 'dark' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
               }`}
             >
               <FaMoon className="mr-3 h-4 w-4" />
               Modo Escuro
-            </button>
-            
-            <button
-              onClick={() => toggleTheme('system')}
-              className={`w-full flex items-center px-3 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                getCurrentTheme() === 'system' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
-              }`}
-            >
-              <FaCog className="mr-3 h-4 w-4" />
-              Sistema
             </button>
           </div>
         </div>

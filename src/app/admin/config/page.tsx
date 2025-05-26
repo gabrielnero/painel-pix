@@ -125,14 +125,9 @@ export default function AdminConfigPage() {
   const groupConfigs = (): ConfigGroup[] => {
     const groups: ConfigGroup[] = [
       {
-        title: 'Configurações de PIX',
-        icon: <FaMoneyBillWave className="text-green-500" />,
-        configs: configs.filter(c => c.key.startsWith('pix.'))
-      },
-      {
-        title: 'APIs de Pagamento',
+        title: 'API de Pagamento',
         icon: <FaKey className="text-blue-500" />,
-        configs: configs.filter(c => c.key.startsWith('api.'))
+        configs: configs.filter(c => c.key.startsWith('payment.'))
       },
       {
         title: 'Configurações do Sistema',

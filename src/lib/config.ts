@@ -33,56 +33,19 @@ function decrypt(text: string): string {
 
 // Configurações padrão do sistema
 export const DEFAULT_CONFIGS = {
-  // Configurações de PIX
-  'pix.provider': {
-    value: 'local',
-    description: 'Provedor de PIX (local, mercadopago, pagseguro, etc.)',
-    isEncrypted: false
-  },
-  'pix.merchant_name': {
-    value: 'T0P1 PAGAMENTOS',
-    description: 'Nome do comerciante para PIX',
-    isEncrypted: false
-  },
-  'pix.merchant_document': {
-    value: '12345678901',
-    description: 'CPF/CNPJ do comerciante',
-    isEncrypted: false
-  },
-  'pix.merchant_city': {
-    value: 'SAO PAULO',
-    description: 'Cidade do comerciante',
-    isEncrypted: false
-  },
-  
-  // Configurações de API (Mercado Pago, PagSeguro, etc.)
-  'api.mercadopago.client_id': {
+  // Configurações de API de Pagamento
+  'payment.client_id': {
     value: '',
-    description: 'Client ID do Mercado Pago',
+    description: 'Client ID da API de Pagamento',
     isEncrypted: true
   },
-  'api.mercadopago.client_secret': {
+  'payment.client_secret': {
     value: '',
-    description: 'Client Secret do Mercado Pago',
-    isEncrypted: true
-  },
-  'api.mercadopago.access_token': {
-    value: '',
-    description: 'Access Token do Mercado Pago',
-    isEncrypted: true
-  },
-  'api.pagseguro.email': {
-    value: '',
-    description: 'Email do PagSeguro',
-    isEncrypted: true
-  },
-  'api.pagseguro.token': {
-    value: '',
-    description: 'Token do PagSeguro',
+    description: 'Client Secret da API de Pagamento',
     isEncrypted: true
   },
   
-  // Configurações gerais
+  // Configurações gerais do sistema
   'system.commission_rate': {
     value: '0.20',
     description: 'Taxa de comissão da plataforma (0.20 = 20%)',
@@ -96,6 +59,16 @@ export const DEFAULT_CONFIGS = {
   'system.min_pix_amount': {
     value: '1.00',
     description: 'Valor mínimo para PIX',
+    isEncrypted: false
+  },
+  'system.support_telegram': {
+    value: 'https://t.me/watchingdaysbecomeyears',
+    description: 'Link do canal de suporte no Telegram',
+    isEncrypted: false
+  },
+  'system.announcement': {
+    value: 'Bem-vindo ao painel PIX! Para suporte, entre em nosso canal do Telegram.',
+    description: 'Mensagem de anúncio exibida no dashboard',
     isEncrypted: false
   }
 };
@@ -208,33 +181,33 @@ export async function initializeDefaultConfigs(userId: string): Promise<void> {
 // Função para obter configurações de PIX
 export async function getPixConfig() {
   return {
-    provider: await getConfig('pix.provider') || 'local',
-    merchantName: await getConfig('pix.merchant_name') || 'T0P1 PAGAMENTOS',
-    merchantDocument: await getConfig('pix.merchant_document') || '12345678901',
-    merchantCity: await getConfig('pix.merchant_city') || 'SAO PAULO',
+    provider: 'local',
+    merchantName: 'T0P1 PAGAMENTOS',
+    merchantDocument: '12345678901',
+    merchantCity: 'SAO PAULO',
     commissionRate: parseFloat(await getConfig('system.commission_rate') || '0.20'),
     maxAmount: parseFloat(await getConfig('system.max_pix_amount') || '1199.99'),
     minAmount: parseFloat(await getConfig('system.min_pix_amount') || '1.00')
   };
 }
 
-// Função para obter configurações de API
-export async function getApiConfig(provider: string) {
-  switch (provider) {
-    case 'mercadopago':
-      return {
-        clientId: await getConfig('api.mercadopago.client_id'),
-        clientSecret: await getConfig('api.mercadopago.client_secret'),
-        accessToken: await getConfig('api.mercadopago.access_token')
-      };
-    case 'pagseguro':
-      return {
-        email: await getConfig('api.pagseguro.email'),
-        token: await getConfig('api.pagseguro.token')
-      };
-    default:
-      return {};
-  }
+// Função para obter configurações de API de pagamento
+export async function getPaymentConfig() {
+  return {
+    clientId: await getConfig('payment.client_id'),
+    clientSecret: await getConfig('payment.client_secret')
+  };
+}
+
+// Função para obter configurações do sistema
+export async function getSystemConfig() {
+  return {
+    supportTelegram: await getConfig('system.support_telegram') || 'https://t.me/watchingdaysbecomeyears',
+    announcement: await getConfig('system.announcement') || 'Bem-vindo ao painel PIX! Para suporte, entre em nosso canal do Telegram.',
+    commissionRate: parseFloat(await getConfig('system.commission_rate') || '0.20'),
+    maxAmount: parseFloat(await getConfig('system.max_pix_amount') || '1199.99'),
+    minAmount: parseFloat(await getConfig('system.min_pix_amount') || '1.00')
+  };
 }
 
 // Função para validar se as configurações de PIX estão completas
@@ -254,22 +227,10 @@ export async function validatePixConfig(): Promise<{ valid: boolean; missing: st
     missing.push('Cidade do comerciante');
   }
 
-  // Se o provedor não for 'local', verificar se as API keys estão configuradas
-  if (config.provider !== 'local') {
-    const apiConfig = await getApiConfig(config.provider);
-    
-    switch (config.provider) {
-      case 'mercadopago':
-        if (!apiConfig.accessToken) {
-          missing.push('Access Token do Mercado Pago');
-        }
-        break;
-      case 'pagseguro':
-        if (!apiConfig.email || !apiConfig.token) {
-          missing.push('Email e Token do PagSeguro');
-        }
-        break;
-    }
+  // Verificar se as configurações de pagamento estão definidas
+  const paymentConfig = await getPaymentConfig();
+  if (!paymentConfig.clientId || !paymentConfig.clientSecret) {
+    missing.push('Client ID e Client Secret da API de Pagamento');
   }
 
   return {

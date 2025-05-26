@@ -18,6 +18,8 @@ import {
 } from 'react-icons/fa';
 import NotificationSystem from '@/components/NotificationSystem';
 import ThemeToggle from '@/components/ThemeToggle';
+import AnnouncementBanner from '@/components/AnnouncementBanner';
+import Shoutbox from '@/components/Shoutbox';
 
 export default function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -172,6 +174,9 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Announcement Banner */}
+        <AnnouncementBanner />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
@@ -386,6 +391,9 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Shoutbox */}
+      <Shoutbox />
     </div>
   );
 } 
