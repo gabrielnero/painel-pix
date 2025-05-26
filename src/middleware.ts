@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Rotas que não precisam de autenticação
-const publicRoutes = ['/', '/login', '/register'];
+const publicRoutes = ['/', '/login', '/register', '/setup'];
 
 // Rotas de API públicas (apenas essenciais)
-const publicApiRoutes = ['/api/auth/login', '/api/auth/register', '/api/auth/verify-invite'];
+const publicApiRoutes = ['/api/auth/login', '/api/auth/register', '/api/auth/verify-invite', '/api/setup/admin'];
 
 // Função para verificar token JWT manualmente (compatível com Edge Runtime)
 function verifyJWT(token: string) {
