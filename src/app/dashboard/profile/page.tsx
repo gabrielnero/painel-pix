@@ -63,20 +63,14 @@ export default function ProfilePage() {
 
   const fetchProfile = async () => {
     try {
-      // Mock data - em produção viria da API
-      const mockProfile: UserProfile = {
-        id: '1',
-        username: 'admin',
-        email: 'admin@t0p1.com',
-        role: 'admin',
-        balance: 1250.75,
-        totalEarnings: 5420.30,
-        inviteCodes: ['HACK2024', 'TOP1INVITE'],
-        rankingPosition: 3,
-        showInRanking: true,
-        createdAt: '2024-01-15T10:30:00Z'
-      };
-      setProfile(mockProfile);
+      const response = await fetch('/api/user/profile');
+      const data = await response.json();
+      
+      if (data.success) {
+        setProfile(data.profile);
+      } else {
+        toast.error('Erro ao carregar perfil');
+      }
     } catch (error) {
       toast.error('Erro ao carregar perfil');
     } finally {
@@ -86,17 +80,16 @@ export default function ProfilePage() {
 
   const fetchRanking = async () => {
     try {
-      // Mock data - em produção viria da API
-      const mockRanking: RankingUser[] = [
-        { username: 'CryptoKing', totalEarnings: 15420.50, position: 1, isCurrentUser: false },
-        { username: 'PixMaster', totalEarnings: 12350.25, position: 2, isCurrentUser: false },
-        { username: 'admin', totalEarnings: 5420.30, position: 3, isCurrentUser: true },
-        { username: 'Usuário desconhecido', totalEarnings: 4200.15, position: 4, isCurrentUser: false },
-        { username: 'TopTrader', totalEarnings: 3850.75, position: 5, isCurrentUser: false }
-      ];
-      setRanking(mockRanking);
+      const response = await fetch('/api/user/ranking');
+      const data = await response.json();
+      
+      if (data.success) {
+        setRanking(data.ranking || []);
+      } else {
+        setRanking([]);
+      }
     } catch (error) {
-      toast.error('Erro ao carregar ranking');
+      setRanking([]);
     }
   };
 

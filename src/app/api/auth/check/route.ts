@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Verificação especial para ambiente de desenvolvimento
+    // Verificação especial para ambiente de desenvolvimento (apenas para admin local)
     if (process.env.NODE_ENV === 'development' && decoded.userId === 'local-admin-id') {
       console.log('Usando autenticação local para desenvolvimento');
       
@@ -49,28 +49,13 @@ export async function GET(request: NextRequest) {
     } catch (dbError) {
       console.error('Erro de conexão com o banco de dados:', dbError);
       
-      // Em ambiente de desenvolvimento, permitir autenticação mesmo sem banco de dados
-      if (process.env.NODE_ENV === 'development') {
-        return NextResponse.json({
-          success: true,
-          authenticated: true,
-          user: {
-            id: decoded.userId,
-            username: 'admin',
-            email: 'admin@painel.com',
-            role: decoded.role,
-          },
-          devMode: true,
-          warning: 'Banco de dados indisponível, usando modo de desenvolvimento'
-        });
-      }
-      
+      // Em produção, retornar erro se não conseguir conectar ao banco
       return NextResponse.json({
         success: false,
         authenticated: false,
         message: 'Erro de conexão com o banco de dados',
         error: dbError instanceof Error ? dbError.message : String(dbError)
-      });
+      }, { status: 500 });
     }
     
     const user = await User.findById(decoded.userId);

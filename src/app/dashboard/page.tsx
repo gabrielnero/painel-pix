@@ -98,11 +98,14 @@ export default function Dashboard() {
     weeklyGrowth: -2.3
   };
 
-  const recentPayments = [
-    { id: 'PIX001', customer: 'João Silva', amount: 150.00, status: 'paid', time: '2 min atrás' },
-    { id: 'PIX002', customer: 'Maria Santos', amount: 75.50, status: 'pending', time: '15 min atrás' },
-    { id: 'PIX003', customer: 'Pedro Costa', amount: 200.00, status: 'paid', time: '1 hora atrás' },
-  ];
+  // Dados de pagamentos recentes (carregados da API)
+  const [recentPayments, setRecentPayments] = useState<Array<{
+    id: string;
+    customer: string;
+    amount: number;
+    status: string;
+    time: string;
+  }>>([]);
 
   const quickActions = [
     {
