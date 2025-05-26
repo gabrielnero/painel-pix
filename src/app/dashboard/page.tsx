@@ -66,6 +66,13 @@ export default function Dashboard() {
             roleElement.textContent = roleText;
           }
         }
+
+        // Buscar estatísticas
+        const statsResponse = await fetch('/api/user/stats');
+        const statsData = await statsResponse.json();
+        if (statsData.success) {
+          setStats(statsData.stats);
+        }
       } catch (error) {
         console.error('Erro ao buscar dados do usuário:', error);
       }
@@ -88,15 +95,15 @@ export default function Dashboard() {
     return () => clearInterval(balanceInterval);
   }, []);
 
-  // Mock data - em produção viria de APIs
-  const stats = {
-    totalPayments: 127,
-    totalAmount: 15420.50,
-    pendingPayments: 8,
-    paidPayments: 119,
-    monthlyGrowth: 12.5,
-    weeklyGrowth: -2.3
-  };
+  // Dados de estatísticas (carregados da API)
+  const [stats, setStats] = useState({
+    totalPayments: 0,
+    totalAmount: 0,
+    pendingPayments: 0,
+    paidPayments: 0,
+    monthlyGrowth: 0,
+    weeklyGrowth: 0
+  });
 
   // Dados de pagamentos recentes (carregados da API)
   const [recentPayments, setRecentPayments] = useState<Array<{

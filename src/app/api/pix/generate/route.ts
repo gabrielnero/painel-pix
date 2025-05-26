@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { primepagService } from '@/lib/services/primepag';
 import { verifyAuth } from '@/lib/auth';
+import { connectToDatabase } from '@/lib/db';
+import { Payment } from '@/lib/models';
+import { generatePixCode, generatePixQrCode } from '@/lib/pix';
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,60 +58,65 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Gerar QR Code PIX usando a API real do PrimePag
-    const qrCodeResponse = await primepagService.generatePixQRCode({
-      value_cents: Math.round(amount * 100), // Converter para centavos
-      generator_name: customer?.name,
-      generator_document: customer?.document,
-      expiration_time: expiresIn || 1800, // Default 30 minutos
-      external_reference: authResult.userId // Usar o userId para validação posterior
-    });
+    try {
+      await connectToDatabase();
 
-    // Log para debug
-    if (process.env.NODE_ENV === 'development') {
-      console.log('QR Code Response:', JSON.stringify(qrCodeResponse, null, 2));
-    }
-
-    // Em modo de desenvolvimento, salvar no localStorage em vez do banco
-    const expirationDate = new Date(Date.now() + ((expiresIn || 1800) * 1000));
-    const paymentData = {
-      id: qrCodeResponse.qrcode.reference_code,
-      userId: authResult.userId,
-      amount: amount,
-      description: description,
-      status: 'pending',
-      pixCopiaECola: qrCodeResponse.qrcode.content,
-      qrCodeImage: qrCodeResponse.qrcode.image_base64,
-      referenceCode: qrCodeResponse.qrcode.reference_code,
-      idempotentId: qrCodeResponse.qrcode.reference_code,
-      expiresAt: expirationDate,
-      createdAt: new Date()
-    };
-
-    // Em modo de desenvolvimento, apenas logar o pagamento
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Pagamento PIX gerado (modo localhost):', {
-        id: paymentData.id,
-        amount: paymentData.amount,
-        referenceCode: paymentData.referenceCode,
-        status: paymentData.status
+      // Gerar código PIX simulado
+      const pixCode = generatePixCode({
+        value: amount,
+        description: description,
+        entityType: 'individual',
+        name: customer?.name || 'Cliente',
+        document: customer?.document || '00000000000'
       });
-    }
 
-    return NextResponse.json({
-      success: true,
-      payment: {
-        id: paymentData.id,
+      // Gerar QR Code
+      const qrCodeImage = generatePixQrCode(pixCode);
+
+      // Criar referência única
+      const referenceCode = `PIX${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
+
+      // Data de expiração
+      const expirationDate = new Date(Date.now() + ((expiresIn || 1800) * 1000));
+
+      // Salvar pagamento no banco
+      const payment = await Payment.create({
+        userId: authResult.userId,
         amount: amount,
+        description: description,
         status: 'pending',
-        pixCopiaECola: qrCodeResponse.qrcode.content,
-        qrCodeImage: qrCodeResponse.qrcode.image_base64,
-        expiresAt: expirationDate.toISOString(),
-        referenceCode: qrCodeResponse.qrcode.reference_code,
-        customer: customer,
-        metadata: metadata
-      }
-    });
+        pixCopiaECola: pixCode,
+        qrCodeImage: qrCodeImage,
+        referenceCode: referenceCode,
+        idempotentId: referenceCode,
+        expiresAt: expirationDate
+      });
+
+      console.log('Pagamento PIX criado:', payment._id);
+
+      return NextResponse.json({
+        success: true,
+        payment: {
+          id: payment._id,
+          amount: amount,
+          status: 'pending',
+          pixCopiaECola: pixCode,
+          qrCodeImage: qrCodeImage,
+          expiresAt: expirationDate.toISOString(),
+          referenceCode: referenceCode,
+          customer: customer,
+          metadata: metadata
+        }
+      });
+
+    } catch (dbError) {
+      console.error('Erro ao salvar pagamento:', dbError);
+      return NextResponse.json({
+        success: false,
+        message: 'Erro ao salvar pagamento no banco de dados',
+        error: dbError instanceof Error ? dbError.message : String(dbError)
+      }, { status: 500 });
+    }
   } catch (error) {
     console.error('Erro ao gerar PIX:', error);
     return NextResponse.json(
