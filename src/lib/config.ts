@@ -185,17 +185,45 @@ export async function getAllConfigs(): Promise<Array<{
     await connectToDatabase();
     
     const configs = await SystemConfig.find({}).sort({ key: 1 });
+    const configMap = new Map(configs.map(config => [config.key, config]));
     
-    return configs.map(config => ({
-      key: config.key,
-      value: config.isEncrypted ? '***ENCRYPTED***' : config.value,
-      description: config.description || '',
-      isEncrypted: config.isEncrypted,
-      updatedAt: config.updatedAt
-    }));
+    const result = [];
+    
+    // Adicionar todas as configurações padrão
+    for (const [key, defaultConfig] of Object.entries(DEFAULT_CONFIGS)) {
+      const existingConfig = configMap.get(key);
+      
+      if (existingConfig) {
+        result.push({
+          key: existingConfig.key,
+          value: existingConfig.isEncrypted ? '***ENCRYPTED***' : existingConfig.value,
+          description: existingConfig.description || '',
+          isEncrypted: existingConfig.isEncrypted,
+          updatedAt: existingConfig.updatedAt
+        });
+      } else {
+        // Usar configuração padrão se não existir no banco
+        result.push({
+          key,
+          value: defaultConfig.isEncrypted ? '***ENCRYPTED***' : defaultConfig.value,
+          description: defaultConfig.description,
+          isEncrypted: defaultConfig.isEncrypted,
+          updatedAt: new Date()
+        });
+      }
+    }
+    
+    return result.sort((a, b) => a.key.localeCompare(b.key));
   } catch (error) {
     console.error('Erro ao obter configurações:', error);
-    return [];
+    // Retornar configurações padrão em caso de erro
+    return Object.entries(DEFAULT_CONFIGS).map(([key, config]) => ({
+      key,
+      value: config.isEncrypted ? '***ENCRYPTED***' : config.value,
+      description: config.description,
+      isEncrypted: config.isEncrypted,
+      updatedAt: new Date()
+    }));
   }
 }
 
