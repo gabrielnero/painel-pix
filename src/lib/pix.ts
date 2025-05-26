@@ -2,7 +2,7 @@
 // Suporte para múltiplos provedores de pagamento
 
 import { v4 as uuidv4 } from 'uuid';
-import { getPixConfig, getApiConfig } from './config';
+import { getPixConfig } from './config';
 
 interface PixOptions {
   value?: number;
