@@ -20,6 +20,7 @@ import NotificationSystem from '@/components/NotificationSystem';
 import ThemeToggle from '@/components/ThemeToggle';
 import AnnouncementBanner from '@/components/AnnouncementBanner';
 import Shoutbox from '@/components/Shoutbox';
+import WalletBalance from '@/components/WalletBalance';
 
 export default function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -169,6 +170,7 @@ export default function Dashboard() {
               <div className="text-sm text-gray-500 dark:text-gray-400">
                 {currentTime.toLocaleString('pt-BR')}
               </div>
+              <WalletBalance />
               <NotificationSystem />
               <ThemeToggle />
             </div>
@@ -177,6 +179,11 @@ export default function Dashboard() {
 
         {/* Announcement Banner */}
         <AnnouncementBanner />
+
+        {/* Shoutbox */}
+        <div className="mb-8">
+          <Shoutbox />
+        </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
@@ -391,9 +398,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-      {/* Shoutbox */}
-      <Shoutbox />
     </div>
   );
 } 
