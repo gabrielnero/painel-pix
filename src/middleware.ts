@@ -50,14 +50,30 @@ export async function middleware(request: NextRequest) {
     }
   }
   
+  // Verificar se o usuário está autenticado
+  const token = request.cookies.get('token')?.value;
+  
+  // Se o usuário está autenticado e tenta acessar páginas públicas, redirecionar para dashboard
+  if (token) {
+    try {
+      const decoded = verifyJWT(token);
+      if (decoded && (pathname === '/' || pathname === '/login' || pathname === '/register')) {
+        const url = new URL('/dashboard', request.url);
+        return NextResponse.redirect(url);
+      }
+    } catch (error) {
+      // Se o token é inválido, limpar e continuar
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      response.cookies.delete('token');
+      return response;
+    }
+  }
+  
   // Verificar se a rota é pública
   if (publicRoutes.some(route => pathname === route) || 
       publicApiRoutes.some(route => pathname.startsWith(route))) {
     return NextResponse.next();
   }
-  
-  // Verificar se o usuário está autenticado
-  const token = request.cookies.get('token')?.value;
   
   // Redirecionar para login se não houver token
   if (!token) {

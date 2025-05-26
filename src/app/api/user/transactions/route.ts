@@ -46,62 +46,12 @@ export async function GET(request: NextRequest) {
       });
 
     } catch (dbError) {
-      // Se estiver em modo offline ou erro de banco, retornar dados mock
-      console.log('Modo offline - retornando transações mock');
-      
-      // Transações mock para demonstração
-      const mockTransactions = [
-        {
-          _id: 'mock-1',
-          userId: authResult.userId,
-          type: 'credit',
-          amount: 80.00,
-          description: 'Pagamento PIX aprovado - PIX001',
-          paymentId: 'PIX001',
-          balanceBefore: 1170.75,
-          balanceAfter: 1250.75,
-          createdAt: new Date(Date.now() - 300000), // 5 min atrás
-          updatedAt: new Date(Date.now() - 300000)
-        },
-        {
-          _id: 'mock-2',
-          userId: authResult.userId,
-          type: 'credit',
-          amount: 120.00,
-          description: 'Pagamento PIX aprovado - PIX002',
-          paymentId: 'PIX002',
-          balanceBefore: 1050.75,
-          balanceAfter: 1170.75,
-          createdAt: new Date(Date.now() - 3600000), // 1 hora atrás
-          updatedAt: new Date(Date.now() - 3600000)
-        },
-        {
-          _id: 'mock-3',
-          userId: authResult.userId,
-          type: 'credit',
-          amount: 200.00,
-          description: 'Pagamento PIX aprovado - PIX003',
-          paymentId: 'PIX003',
-          balanceBefore: 850.75,
-          balanceAfter: 1050.75,
-          createdAt: new Date(Date.now() - 7200000), // 2 horas atrás
-          updatedAt: new Date(Date.now() - 7200000)
-        }
-      ];
-
+      console.error('Erro de conexão com o banco de dados:', dbError);
       return NextResponse.json({
-        success: true,
-        transactions: mockTransactions,
-        pagination: {
-          page,
-          limit,
-          total: mockTransactions.length,
-          totalPages: 1,
-          hasNext: false,
-          hasPrev: false
-        },
-        offline: true
-      });
+        success: false,
+        message: 'Erro de conexão com o banco de dados',
+        error: dbError instanceof Error ? dbError.message : String(dbError)
+      }, { status: 500 });
     }
 
   } catch (error) {

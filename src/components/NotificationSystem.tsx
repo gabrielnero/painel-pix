@@ -19,28 +19,24 @@ export default function NotificationSystem() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    // Simular algumas notificações para demonstração
-    const mockNotifications: Notification[] = [
-      {
-        id: '1',
-        type: 'payment_approved',
-        title: 'Pagamento Aprovado! 🎉',
-        message: 'Seu PIX de R$ 80,00 foi aprovado e creditado na sua carteira (Taxa: R$ 20,00)',
-        timestamp: new Date(Date.now() - 300000), // 5 min atrás
-        read: false
-      },
-      {
-        id: '2',
-        type: 'invite_received',
-        title: 'Novo Código de Convite',
-        message: 'Você recebeu um novo código de convite para compartilhar: HACK2024',
-        timestamp: new Date(Date.now() - 3600000), // 1 hora atrás
-        read: false
+    // Carregar notificações reais do servidor
+    const fetchNotifications = async () => {
+      try {
+        const response = await fetch('/api/user/notifications');
+        const data = await response.json();
+        
+        if (data.success) {
+          setNotifications(data.notifications || []);
+          setUnreadCount(data.notifications?.filter((n: Notification) => !n.read).length || 0);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar notificações:', error);
+        setNotifications([]);
+        setUnreadCount(0);
       }
-    ];
+    };
 
-    setNotifications(mockNotifications);
-    setUnreadCount(mockNotifications.filter(n => !n.read).length);
+    fetchNotifications();
   }, []);
 
   const markAsRead = (id: string) => {

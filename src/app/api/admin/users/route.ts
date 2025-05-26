@@ -73,70 +73,12 @@ export async function GET(request: NextRequest) {
       });
 
     } catch (dbError) {
-      // Modo offline - retornar dados mock
-      console.log('Modo offline - retornando usuários mock');
-      
-      const mockUsers = [
-        {
-          _id: 'user-1',
-          username: 'admin',
-          email: 'admin@t0p1.com',
-          role: 'admin',
-          balance: 1250.75,
-          totalEarnings: 5420.30,
-          isVip: true,
-          banned: false,
-          createdAt: new Date('2024-01-15'),
-          lastLogin: new Date(),
-          invitedBy: null,
-          bannedBy: null,
-          bannedAt: null
-        },
-        {
-          _id: 'user-2',
-          username: 'usuario1',
-          email: 'usuario1@email.com',
-          role: 'user',
-          balance: 150.00,
-          totalEarnings: 300.00,
-          isVip: false,
-          banned: false,
-          createdAt: new Date('2024-02-01'),
-          lastLogin: new Date(Date.now() - 86400000),
-          invitedBy: { username: 'admin' },
-          bannedBy: null,
-          bannedAt: null
-        },
-        {
-          _id: 'user-3',
-          username: 'usuario2',
-          email: 'usuario2@email.com',
-          role: 'user',
-          balance: 0,
-          totalEarnings: 0,
-          isVip: false,
-          banned: true,
-          createdAt: new Date('2024-02-10'),
-          lastLogin: new Date(Date.now() - 172800000),
-          invitedBy: { username: 'admin' },
-          bannedBy: { username: 'admin' },
-          bannedAt: new Date('2024-02-15')
-        }
-      ];
-
+      console.error('Erro de conexão com o banco de dados:', dbError);
       return NextResponse.json({
-        success: true,
-        users: mockUsers,
-        pagination: {
-          page: 1,
-          limit: 10,
-          total: mockUsers.length,
-          totalPages: 1,
-          hasNext: false,
-          hasPrev: false
-        },
-        offline: true
-      });
+        success: false,
+        message: 'Erro de conexão com o banco de dados',
+        error: dbError instanceof Error ? dbError.message : String(dbError)
+      }, { status: 500 });
     }
 
   } catch (error) {
@@ -233,14 +175,12 @@ export async function PATCH(request: NextRequest) {
       });
 
     } catch (dbError) {
-      // Modo offline - simular sucesso
-      console.log('Modo offline - simulando atualização de usuário');
-      
+      console.error('Erro de conexão com o banco de dados:', dbError);
       return NextResponse.json({
-        success: true,
-        message: 'Usuário atualizado com sucesso (modo offline)',
-        offline: true
-      });
+        success: false,
+        message: 'Erro de conexão com o banco de dados',
+        error: dbError instanceof Error ? dbError.message : String(dbError)
+      }, { status: 500 });
     }
 
   } catch (error) {

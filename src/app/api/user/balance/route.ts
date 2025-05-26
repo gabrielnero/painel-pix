@@ -33,17 +33,12 @@ export async function GET(request: NextRequest) {
       });
 
     } catch (dbError) {
-      // Se estiver em modo offline ou erro de banco, retornar dados mock
-      console.log('Modo offline - retornando saldo mock');
-      
-      // Retornar saldo mock baseado no usuário
-      const mockBalance = authResult.userId === 'local-admin-id' ? 1250.75 : 0;
-      
+      console.error('Erro de conexão com o banco de dados:', dbError);
       return NextResponse.json({
-        success: true,
-        balance: mockBalance,
-        offline: true
-      });
+        success: false,
+        message: 'Erro de conexão com o banco de dados',
+        error: dbError instanceof Error ? dbError.message : String(dbError)
+      }, { status: 500 });
     }
 
   } catch (error) {
