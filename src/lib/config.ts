@@ -33,16 +33,54 @@ function decrypt(text: string): string {
 
 // Configurações padrão do sistema
 export const DEFAULT_CONFIGS = {
-  // Configurações de API de Pagamento
-  'payment.client_id': {
-    value: '',
-    description: 'Client ID da API de Pagamento',
+  // Configurações PrimePag
+  'primepag.client_id': {
+    value: '26d7741e-83d5-4ca7-a6c0-0c416d046bc2',
+    description: 'Client ID da PrimePag',
     isEncrypted: true
   },
-  'payment.client_secret': {
-    value: '',
-    description: 'Client Secret da API de Pagamento',
+  'primepag.client_secret': {
+    value: '8517fb27-263a-4954-ba74-a8ef57583792',
+    description: 'Client Secret da PrimePag',
     isEncrypted: true
+  },
+  'primepag.enabled': {
+    value: 'true',
+    description: 'Habilitar PrimePag como método de pagamento',
+    isEncrypted: false
+  },
+  
+  // Configurações para outros provedores (para futuro)
+  'mercadopago.client_id': {
+    value: '',
+    description: 'Client ID do Mercado Pago',
+    isEncrypted: true
+  },
+  'mercadopago.client_secret': {
+    value: '',
+    description: 'Client Secret do Mercado Pago',
+    isEncrypted: true
+  },
+  'mercadopago.enabled': {
+    value: 'false',
+    description: 'Habilitar Mercado Pago como método de pagamento',
+    isEncrypted: false
+  },
+  
+  'pagseguro.client_id': {
+    value: '',
+    description: 'Client ID do PagSeguro',
+    isEncrypted: true
+  },
+  'pagseguro.client_secret': {
+    value: '',
+    description: 'Client Secret do PagSeguro',
+    isEncrypted: true
+  },
+  'pagseguro.enabled': {
+    value: 'false',
+    description: 'Habilitar PagSeguro como método de pagamento',
+    isEncrypted: false
   },
   
   // Configurações gerais do sistema
@@ -194,9 +232,45 @@ export async function getPixConfig() {
 // Função para obter configurações de API de pagamento
 export async function getPaymentConfig() {
   return {
-    clientId: await getConfig('payment.client_id'),
-    clientSecret: await getConfig('payment.client_secret')
+    clientId: await getConfig('primepag.client_id'),
+    clientSecret: await getConfig('primepag.client_secret')
   };
+}
+
+// Função para obter configurações de um provedor específico
+export async function getProviderConfig(provider: string) {
+  return {
+    clientId: await getConfig(`${provider}.client_id`),
+    clientSecret: await getConfig(`${provider}.client_secret`),
+    enabled: (await getConfig(`${provider}.enabled`)) === 'true'
+  };
+}
+
+// Função para obter todos os provedores de pagamento disponíveis
+export async function getPaymentProviders() {
+  const providers = ['primepag', 'mercadopago', 'pagseguro'];
+  const result = [];
+  
+  for (const provider of providers) {
+    const config = await getProviderConfig(provider);
+    result.push({
+      name: provider,
+      displayName: getProviderDisplayName(provider),
+      ...config
+    });
+  }
+  
+  return result;
+}
+
+// Função para obter nome de exibição do provedor
+function getProviderDisplayName(provider: string): string {
+  const names: { [key: string]: string } = {
+    'primepag': 'PrimePag',
+    'mercadopago': 'Mercado Pago',
+    'pagseguro': 'PagSeguro'
+  };
+  return names[provider] || provider;
 }
 
 // Função para obter configurações do sistema

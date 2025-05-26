@@ -13,7 +13,10 @@ import {
   FaShieldAlt,
   FaMoneyBillWave,
   FaServer,
-  FaSpinner
+  FaSpinner,
+  FaCreditCard,
+  FaToggleOn,
+  FaToggleOff
 } from 'react-icons/fa';
 
 interface Config {
@@ -24,8 +27,9 @@ interface Config {
   updatedAt: Date;
 }
 
-interface ConfigGroup {
-  title: string;
+interface PaymentProvider {
+  name: string;
+  displayName: string;
   icon: React.ReactNode;
   configs: Config[];
 }
@@ -122,25 +126,124 @@ export default function AdminConfigPage() {
     }));
   };
 
-  const groupConfigs = (): ConfigGroup[] => {
-    const groups: ConfigGroup[] = [
-      {
-        title: 'API de Pagamento',
-        icon: <FaKey className="text-blue-500" />,
-        configs: configs.filter(c => c.key.startsWith('payment.'))
-      },
-      {
-        title: 'Configurações do Sistema',
-        icon: <FaServer className="text-purple-500" />,
-        configs: configs.filter(c => c.key.startsWith('system.'))
-      }
-    ];
+  const getProviderIcon = (providerName: string) => {
+    switch (providerName) {
+      case 'primepag':
+        return <FaCreditCard className="text-blue-500" />;
+      case 'mercadopago':
+        return <FaMoneyBillWave className="text-yellow-500" />;
+      case 'pagseguro':
+        return <FaShieldAlt className="text-green-500" />;
+      default:
+        return <FaCreditCard className="text-gray-500" />;
+    }
+  };
 
-    return groups.filter(group => group.configs.length > 0);
+  const getProviderDisplayName = (providerName: string) => {
+    const names: { [key: string]: string } = {
+      'primepag': 'PrimePag',
+      'mercadopago': 'Mercado Pago',
+      'pagseguro': 'PagSeguro'
+    };
+    return names[providerName] || providerName;
+  };
+
+  const groupConfigsByProvider = (): { providers: PaymentProvider[], systemConfigs: Config[] } => {
+    const providers: PaymentProvider[] = [];
+    const systemConfigs: Config[] = [];
+    
+    // Agrupar por provedor
+    const providerNames = ['primepag', 'mercadopago', 'pagseguro'];
+    
+    providerNames.forEach(providerName => {
+      const providerConfigs = configs.filter(c => c.key.startsWith(`${providerName}.`));
+      if (providerConfigs.length > 0) {
+        providers.push({
+          name: providerName,
+          displayName: getProviderDisplayName(providerName),
+          icon: getProviderIcon(providerName),
+          configs: providerConfigs
+        });
+      }
+    });
+
+    // Configurações do sistema
+    configs.forEach(config => {
+      if (config.key.startsWith('system.')) {
+        systemConfigs.push(config);
+      }
+    });
+
+    return { providers, systemConfigs };
   };
 
   const hasChanges = () => {
     return configs.some(config => editedConfigs[config.key] !== config.value);
+  };
+
+  const renderConfigField = (config: Config) => {
+    const isToggle = config.key.endsWith('.enabled');
+    const isEncrypted = config.isEncrypted && !showEncrypted[config.key];
+    const displayValue = isEncrypted ? '***ENCRYPTED***' : editedConfigs[config.key];
+
+    if (isToggle) {
+      const isEnabled = editedConfigs[config.key] === 'true';
+      return (
+        <div className="flex items-center justify-between">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              {config.description}
+            </label>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Habilitar/desabilitar este método de pagamento
+            </p>
+          </div>
+          <button
+            onClick={() => handleConfigChange(config.key, isEnabled ? 'false' : 'true')}
+            className={`flex items-center p-1 rounded-full transition-colors ${
+              isEnabled 
+                ? 'bg-green-500 text-white' 
+                : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
+            }`}
+          >
+            {isEnabled ? (
+              <FaToggleOn className="h-6 w-6" />
+            ) : (
+              <FaToggleOff className="h-6 w-6" />
+            )}
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          {config.description}
+        </label>
+        <div className="relative">
+          <input
+            type={isEncrypted ? 'password' : 'text'}
+            value={displayValue}
+            onChange={(e) => handleConfigChange(config.key, e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            placeholder={config.isEncrypted ? 'Digite a nova chave...' : 'Digite o valor...'}
+          />
+          {config.isEncrypted && (
+            <button
+              type="button"
+              onClick={() => toggleShowEncrypted(config.key)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              {showEncrypted[config.key] ? <FaEyeSlash /> : <FaEye />}
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Chave: {config.key}
+        </p>
+      </div>
+    );
   };
 
   if (loading) {
@@ -153,6 +256,8 @@ export default function AdminConfigPage() {
       </div>
     );
   }
+
+  const { providers, systemConfigs } = groupConfigsByProvider();
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -193,124 +298,74 @@ export default function AdminConfigPage() {
             Configurações do Sistema
           </h1>
           <p className="text-gray-600 dark:text-gray-300">
-            Gerencie as configurações de API keys, PIX e outras configurações do sistema.
+            Gerencie as API keys dos provedores de pagamento e outras configurações do sistema.
           </p>
         </div>
 
-        {/* Grupos de Configurações */}
         <div className="space-y-8">
-          {groupConfigs().map((group, groupIndex) => (
-            <div key={groupIndex} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
-                  {group.icon}
-                  <span className="ml-3">{group.title}</span>
-                </h2>
-              </div>
-
-              <div className="p-6">
-                <div className="grid grid-cols-1 gap-6">
-                  {group.configs.map((config) => (
-                    <div key={config.key} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                          <div className="flex items-center">
-                            {config.isEncrypted && (
-                              <FaShieldAlt className="text-yellow-500 mr-2" title="Campo criptografado" />
-                            )}
-                            {config.key}
-                          </div>
-                        </label>
-                        {config.isEncrypted && (
-                          <button
-                            type="button"
-                            onClick={() => toggleShowEncrypted(config.key)}
-                            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                          >
-                            {showEncrypted[config.key] ? <FaEyeSlash /> : <FaEye />}
-                          </button>
-                        )}
+          {/* Provedores de Pagamento */}
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+              <FaCreditCard className="mr-3 text-blue-600" />
+              Métodos de Pagamento
+            </h2>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {providers.map((provider) => (
+                <div key={provider.name} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                  <div className="flex items-center mb-6">
+                    {provider.icon}
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white ml-3">
+                      {provider.displayName}
+                    </h3>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {provider.configs.map((config) => (
+                      <div key={config.key}>
+                        {renderConfigField(config)}
                       </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-                      {config.description && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {config.description}
-                        </p>
-                      )}
-
-                      <div className="relative">
-                        {config.isEncrypted && !showEncrypted[config.key] ? (
-                          <input
-                            type="password"
-                            value={editedConfigs[config.key] === '***ENCRYPTED***' ? '' : editedConfigs[config.key] || ''}
-                            onChange={(e) => handleConfigChange(config.key, e.target.value)}
-                            placeholder="Digite o novo valor para alterar"
-                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                          />
-                        ) : (
-                          <input
-                            type="text"
-                            value={editedConfigs[config.key] === '***ENCRYPTED***' ? '' : editedConfigs[config.key] || ''}
-                            onChange={(e) => handleConfigChange(config.key, e.target.value)}
-                            placeholder={config.isEncrypted ? "Digite o novo valor para alterar" : "Valor da configuração"}
-                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                          />
-                        )}
-                      </div>
-
-                      {editedConfigs[config.key] !== config.value && (
-                        <div className="text-xs text-blue-600 dark:text-blue-400">
-                          ✓ Valor alterado (será salvo quando clicar em "Salvar Alterações")
-                        </div>
-                      )}
+          {/* Configurações do Sistema */}
+          {systemConfigs.length > 0 && (
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                <FaServer className="mr-3 text-purple-600" />
+                Configurações Gerais
+              </h2>
+              
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {systemConfigs.map((config) => (
+                    <div key={config.key}>
+                      {renderConfigField(config)}
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-          ))}
+          )}
         </div>
 
-        {/* Informações de Segurança */}
-        <div className="mt-8 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
-          <div className="flex items-start">
-            <FaShieldAlt className="text-yellow-600 dark:text-yellow-400 mt-1 mr-3" />
-            <div>
-              <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-2">
-                Informações de Segurança
-              </h3>
-              <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
-                <p>• Campos marcados com <FaShieldAlt className="inline text-yellow-500" /> são criptografados automaticamente</p>
-                <p>• API keys e tokens são armazenados de forma segura no banco de dados</p>
-                <p>• Apenas administradores podem visualizar e alterar essas configurações</p>
-                <p>• Todas as alterações são registradas com data/hora e usuário responsável</p>
-              </div>
-            </div>
+        {/* Informações de Ajuda */}
+        <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3 flex items-center">
+            <FaKey className="mr-2" />
+            Informações Importantes
+          </h3>
+          <div className="text-sm text-blue-800 dark:text-blue-200 space-y-2">
+            <p>• <strong>API Keys:</strong> Mantenha suas chaves de API seguras e nunca as compartilhe.</p>
+            <p>• <strong>Criptografia:</strong> Campos sensíveis são automaticamente criptografados no banco de dados.</p>
+            <p>• <strong>Provedores:</strong> Habilite apenas os métodos de pagamento que você pretende usar.</p>
+            <p>• <strong>Teste:</strong> Sempre teste as configurações em ambiente de desenvolvimento antes de usar em produção.</p>
           </div>
         </div>
-
-        {/* Botão de Salvar Fixo */}
-        {hasChanges() && (
-          <div className="fixed bottom-6 right-6">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-full shadow-lg transition-colors duration-300 flex items-center"
-            >
-              {saving ? (
-                <>
-                  <FaSpinner className="animate-spin mr-2" />
-                  Salvando...
-                </>
-              ) : (
-                <>
-                  <FaSave className="mr-2" />
-                  Salvar Alterações
-                </>
-              )}
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
