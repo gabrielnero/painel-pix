@@ -53,7 +53,25 @@ export async function GET(request: NextRequest) {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('userId', 'username email');
+        .populate('userId', 'username email')
+        .lean();
+
+      // Transformar dados para o formato esperado pelo frontend
+      const formattedPayments = payments.map((payment: any) => ({
+        id: payment._id.toString(),
+        amount: payment.amount,
+        status: payment.status,
+        description: payment.description,
+        customer: {
+          name: payment.userId?.username || 'Usuário',
+          document: payment.userId?.email || 'N/A'
+        },
+        createdAt: payment.createdAt,
+        paidAt: payment.paidAt,
+        expiresAt: payment.expiresAt,
+        pixCopiaECola: payment.pixCopiaECola || '',
+        referenceCode: payment.referenceCode || ''
+      }));
 
       const total = await Payment.countDocuments(query);
 
@@ -73,7 +91,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        payments,
+        payments: formattedPayments,
         pagination: {
           page,
           limit,
