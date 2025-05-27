@@ -188,9 +188,9 @@ export default function GeneratePixPage() {
 
       setPixData(data.payment);
 
-      // Iniciar verificação automática de status a cada 5 segundos
+      // Iniciar verificação automática de status a cada 5 segundos usando referenceCode
       const interval = setInterval(() => {
-        checkPaymentStatus(data.payment.id, true);
+        checkPaymentStatus(data.payment.referenceCode, true);
       }, 5000);
       setStatusCheckInterval(interval);
 

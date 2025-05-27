@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
 import { Payment } from '@/lib/models';
-import { generatePixCode, generatePixQrCode } from '@/lib/pix';
+import { primepagService } from '@/lib/services/primepag';
 import { validatePixConfig } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
@@ -74,20 +74,16 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
       }
 
-      // Gerar código PIX usando configurações do sistema
-      const pixCode = await generatePixCode({
-        value: amount,
-        description: description,
-        entityType: 'individual',
-        name: customer?.name,
-        document: customer?.document
+      // Gerar PIX usando a API da PrimePag
+      const primepagResponse = await primepagService.generatePixQRCode({
+        value_cents: Math.round(amount * 100), // Converter para centavos
+        generator_name: customer?.name || 'Cliente',
+        generator_document: customer?.document || '12345678901',
+        expiration_time: expiresIn || 1800, // 30 minutos por padrão
+        external_reference: authResult.userId // Usar ID do usuário como referência
       });
 
-      // Gerar QR Code
-      const qrCodeImage = generatePixQrCode(pixCode);
-
-      // Criar referência única
-      const referenceCode = `PIX${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
+      console.log('PIX gerado via PrimePag:', primepagResponse);
 
       // Data de expiração
       const expirationDate = new Date(Date.now() + ((expiresIn || 1800) * 1000));
@@ -98,10 +94,10 @@ export async function POST(request: NextRequest) {
         amount: amount,
         description: description,
         status: 'pending',
-        pixCopiaECola: pixCode,
-        qrCodeImage: qrCodeImage,
-        referenceCode: referenceCode,
-        idempotentId: referenceCode,
+        pixCopiaECola: primepagResponse.qrcode.content,
+        qrCodeImage: primepagResponse.qrcode.image_base64 || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(primepagResponse.qrcode.content)}`,
+        referenceCode: primepagResponse.qrcode.reference_code,
+        idempotentId: primepagResponse.qrcode.reference_code,
         expiresAt: expirationDate
       });
 
@@ -113,10 +109,10 @@ export async function POST(request: NextRequest) {
           id: payment._id,
           amount: amount,
           status: 'pending',
-          pixCopiaECola: pixCode,
-          qrCodeImage: qrCodeImage,
+          pixCopiaECola: primepagResponse.qrcode.content,
+          qrCodeImage: primepagResponse.qrcode.image_base64 || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(primepagResponse.qrcode.content)}`,
           expiresAt: expirationDate.toISOString(),
-          referenceCode: referenceCode,
+          referenceCode: primepagResponse.qrcode.reference_code,
           customer: customer,
           metadata: metadata
         }
