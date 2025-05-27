@@ -1,27 +1,31 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function POST(request: NextRequest) {
   try {
-    // Remover o cookie do token
+    // Limpar o cookie de autenticação
     const cookieStore = cookies();
     cookieStore.delete('token');
-    
+
     return NextResponse.json({
       success: true,
       message: 'Logout realizado com sucesso'
     });
   } catch (error) {
-    console.error('Erro durante logout:', error);
+    console.error('Erro ao fazer logout:', error);
     return NextResponse.json(
       { 
         success: false, 
-        message: 'Erro ao realizar logout',
-        error: error instanceof Error ? error.message : String(error)
+        message: 'Erro ao fazer logout' 
       },
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  // Suporte para GET também (compatibilidade)
+  return POST(request);
 } 

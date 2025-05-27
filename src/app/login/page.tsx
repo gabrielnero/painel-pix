@@ -92,7 +92,7 @@ export default function Login() {
       // Sucesso com animação
       toast.success('🎯 Você foi logado com sucesso!', { 
         id: 'login-progress',
-        duration: 3000,
+        duration: 2000,
         style: {
           background: '#1f2937',
           color: '#10b981',
@@ -101,10 +101,13 @@ export default function Login() {
         }
       });
 
-      // Todos os usuários vão para o dashboard, incluindo admins
+      // Redirecionar imediatamente para o dashboard
+      console.log('Login bem-sucedido, redirecionando para dashboard...');
+      
+      // Usar window.location para garantir o redirecionamento
       setTimeout(() => {
-        router.push('/dashboard');
-      }, 1500);
+        window.location.href = '/dashboard';
+      }, 1000);
 
     } catch (err) {
       clearInterval(messageInterval);
