@@ -186,11 +186,16 @@ export default function UserInfo() {
               </Link>
             )}
             <button
-              onClick={() => {
+              onClick={async () => {
                 setShowDropdown(false);
-                // Logout logic here
-                fetch('/api/auth/logout', { method: 'POST' })
-                  .then(() => window.location.href = '/');
+                try {
+                  await fetch('/api/auth/logout', { method: 'POST' });
+                } catch (error) {
+                  console.error('Erro ao fazer logout:', error);
+                } finally {
+                  // Sempre redirecionar, mesmo se houver erro
+                  window.location.href = '/';
+                }
               }}
               className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
             >

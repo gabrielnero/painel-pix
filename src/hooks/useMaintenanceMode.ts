@@ -15,9 +15,30 @@ export function useMaintenanceMode() {
     estimatedTime: ''
   });
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string>('');
 
   const checkMaintenanceMode = async () => {
     try {
+      // Verificar informações do usuário primeiro
+      const userResponse = await fetch('/api/auth/check');
+      const userData = await userResponse.json();
+      
+      if (userData.success && userData.user) {
+        setUserRole(userData.user.role);
+        
+        // Se for admin, não aplicar manutenção
+        if (userData.user.role === 'admin') {
+          setMaintenanceInfo({
+            isActive: false,
+            message: '',
+            estimatedTime: ''
+          });
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // Para usuários não-admin, verificar status de manutenção
       const response = await fetch('/api/maintenance/status');
       const data = await response.json();
       
@@ -43,6 +64,7 @@ export function useMaintenanceMode() {
   return {
     ...maintenanceInfo,
     loading,
+    userRole,
     refresh: checkMaintenanceMode
   };
 } 
