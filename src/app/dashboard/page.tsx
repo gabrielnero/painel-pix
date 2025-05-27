@@ -21,11 +21,14 @@ import ThemeToggle from '@/components/ThemeToggle';
 import AnnouncementBanner from '@/components/AnnouncementBanner';
 import Shoutbox from '@/components/Shoutbox';
 import ActiveUsersWidget from '@/components/ActiveUsersWidget';
+import MaintenanceMode from '@/components/MaintenanceMode';
+import { useMaintenanceMode } from '@/hooks/useMaintenanceMode';
 
 export default function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [userBalance, setUserBalance] = useState(0);
   const [userInfo, setUserInfo] = useState({ username: '', role: '' });
+  const { isActive: isMaintenanceActive, message: maintenanceMessage, estimatedTime, loading: maintenanceLoading } = useMaintenanceMode();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -151,6 +154,16 @@ export default function Dashboard() {
       iconColor: 'text-white'
     }
   ];
+
+  // Verificar se o sistema está em manutenção
+  if (!maintenanceLoading && isMaintenanceActive) {
+    return (
+      <MaintenanceMode 
+        message={maintenanceMessage}
+        estimatedTime={estimatedTime}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

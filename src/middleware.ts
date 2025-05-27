@@ -1,11 +1,10 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 // Rotas que não precisam de autenticação
-const publicRoutes = ['/', '/login', '/register', '/setup'];
+const publicRoutes = ['/', '/login', '/register', '/setup', '/maintenance'];
 
 // Rotas de API públicas (apenas essenciais)
-const publicApiRoutes = ['/api/auth/login', '/api/auth/register', '/api/auth/verify-invite', '/api/setup/admin'];
+const publicApiRoutes = ['/api/auth/login', '/api/auth/register', '/api/auth/verify-invite', '/api/setup/admin', '/api/maintenance/status'];
 
 // Função para verificar token JWT manualmente (compatível com Edge Runtime)
 function verifyJWT(token: string) {
@@ -38,17 +37,6 @@ function verifyJWT(token: string) {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
-  // Bloquear rotas perigosas em produção
-  if (process.env.NODE_ENV === 'production') {
-    const dangerousRoutes = ['/api/init', '/api/debug', '/api/test'];
-    if (dangerousRoutes.some(route => pathname.startsWith(route))) {
-      return NextResponse.json(
-        { error: 'Route not available in production' },
-        { status: 404 }
-      );
-    }
-  }
   
   // Verificar se o usuário está autenticado
   const token = request.cookies.get('token')?.value;
@@ -112,6 +100,11 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/dashboard/:path*',
+    '/admin/:path*',
+    '/api/pix/:path*',
+    '/api/user/:path*',
+    '/api/invite/:path*',
     /*
      * Match all request paths except for the ones starting with:
      * - _next/static (static files)

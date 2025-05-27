@@ -14,6 +14,8 @@ import {
   FaPlus,
   FaSpinner
 } from 'react-icons/fa';
+import MaintenanceMode from '@/components/MaintenanceMode';
+import { useMaintenanceMode } from '@/hooks/useMaintenanceMode';
 
 interface PixData {
   id: string;
@@ -31,6 +33,17 @@ export default function GeneratePixPage() {
   const [loading, setLoading] = useState(false);
   const [pixData, setPixData] = useState<PixData | null>(null);
   const [statusCheckInterval, setStatusCheckInterval] = useState<NodeJS.Timeout | null>(null);
+  const { isActive: isMaintenanceActive, message: maintenanceMessage, estimatedTime, loading: maintenanceLoading } = useMaintenanceMode();
+
+  // Verificar se o sistema está em manutenção
+  if (!maintenanceLoading && isMaintenanceActive) {
+    return (
+      <MaintenanceMode 
+        message={maintenanceMessage}
+        estimatedTime={estimatedTime}
+      />
+    );
+  }
 
   // Limpar intervalo ao desmontar
   useEffect(() => {

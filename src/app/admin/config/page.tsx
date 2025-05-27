@@ -16,7 +16,9 @@ import {
   FaSpinner,
   FaCreditCard,
   FaToggleOn,
-  FaToggleOff
+  FaToggleOff,
+  FaTools,
+  FaExclamationTriangle
 } from 'react-icons/fa';
 
 interface Config {
@@ -332,8 +334,69 @@ export default function AdminConfigPage() {
             </div>
           </div>
 
+          {/* Configurações de Manutenção */}
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+              <FaTools className="mr-3 text-orange-600" />
+              Modo Manutenção
+            </h2>
+            
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <div className="grid grid-cols-1 gap-6">
+                {systemConfigs
+                  .filter(config => config.key.includes('maintenance'))
+                  .map((config) => {
+                    if (config.key === 'system.maintenance_mode') {
+                      const isEnabled = editedConfigs[config.key] === 'true';
+                      return (
+                        <div key={config.key} className="border-b border-gray-200 dark:border-gray-700 pb-6">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <label className="block text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                {config.description}
+                              </label>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Quando ativado, apenas administradores podem acessar o sistema
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleConfigChange(config.key, isEnabled ? 'false' : 'true')}
+                              className={`flex items-center p-2 rounded-full transition-all duration-300 ${
+                                isEnabled 
+                                  ? 'bg-orange-500 text-white shadow-lg' 
+                                  : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
+                              }`}
+                            >
+                              {isEnabled ? (
+                                <FaToggleOn className="h-8 w-8" />
+                              ) : (
+                                <FaToggleOff className="h-8 w-8" />
+                              )}
+                            </button>
+                          </div>
+                          {isEnabled && (
+                            <div className="mt-4 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                              <p className="text-sm text-orange-800 dark:text-orange-200 flex items-center">
+                                <FaExclamationTriangle className="mr-2" />
+                                <strong>Atenção:</strong> O modo manutenção está ativo! Usuários não conseguirão acessar o dashboard.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={config.key}>
+                        {renderConfigField(config)}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
+
           {/* Configurações do Sistema */}
-          {systemConfigs.length > 0 && (
+          {systemConfigs.filter(config => !config.key.includes('maintenance')).length > 0 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
                 <FaServer className="mr-3 text-purple-600" />
@@ -342,11 +405,13 @@ export default function AdminConfigPage() {
               
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {systemConfigs.map((config) => (
-                    <div key={config.key}>
-                      {renderConfigField(config)}
-                    </div>
-                  ))}
+                  {systemConfigs
+                    .filter(config => !config.key.includes('maintenance'))
+                    .map((config) => (
+                      <div key={config.key}>
+                        {renderConfigField(config)}
+                      </div>
+                    ))}
                 </div>
               </div>
             </div>

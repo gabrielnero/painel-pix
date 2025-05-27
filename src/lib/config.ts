@@ -108,6 +108,21 @@ export const DEFAULT_CONFIGS = {
     value: 'Bem-vindo ao painel PIX! Para suporte, entre em nosso canal do Telegram.',
     description: 'Mensagem de anúncio exibida no dashboard',
     isEncrypted: false
+  },
+  'system.maintenance_mode': {
+    value: 'false',
+    description: 'Ativar modo manutenção (true/false)',
+    isEncrypted: false
+  },
+  'system.maintenance_message': {
+    value: 'Sistema em manutenção. Voltaremos em breve com melhorias!',
+    description: 'Mensagem exibida durante a manutenção',
+    isEncrypted: false
+  },
+  'system.maintenance_estimated_time': {
+    value: '',
+    description: 'Tempo estimado para conclusão da manutenção',
+    isEncrypted: false
   }
 };
 
@@ -309,6 +324,21 @@ export async function getSystemConfig() {
     commissionRate: parseFloat(await getConfig('system.commission_rate') || '0.20'),
     maxAmount: parseFloat(await getConfig('system.max_pix_amount') || '1199.99'),
     minAmount: parseFloat(await getConfig('system.min_pix_amount') || '1.00')
+  };
+}
+
+// Função para verificar se o sistema está em modo manutenção
+export async function isMaintenanceMode(): Promise<boolean> {
+  const maintenanceMode = await getConfig('system.maintenance_mode');
+  return maintenanceMode === 'true';
+}
+
+// Função para obter informações do modo manutenção
+export async function getMaintenanceInfo() {
+  return {
+    isActive: await isMaintenanceMode(),
+    message: await getConfig('system.maintenance_message') || 'Sistema em manutenção. Voltaremos em breve com melhorias!',
+    estimatedTime: await getConfig('system.maintenance_estimated_time') || ''
   };
 }
 

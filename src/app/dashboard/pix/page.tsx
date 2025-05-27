@@ -2,8 +2,22 @@
 
 import Link from 'next/link';
 import { FaArrowLeft, FaCreditCard, FaCheckCircle, FaClock, FaChevronRight } from 'react-icons/fa';
+import MaintenanceMode from '@/components/MaintenanceMode';
+import { useMaintenanceMode } from '@/hooks/useMaintenanceMode';
 
 export default function SelectPaymentGateway() {
+  const { isActive: isMaintenanceActive, message: maintenanceMessage, estimatedTime, loading: maintenanceLoading } = useMaintenanceMode();
+
+  // Verificar se o sistema está em manutenção
+  if (!maintenanceLoading && isMaintenanceActive) {
+    return (
+      <MaintenanceMode 
+        message={maintenanceMessage}
+        estimatedTime={estimatedTime}
+      />
+    );
+  }
+
   const gateways = [
     {
       id: 'primepag',
