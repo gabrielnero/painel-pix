@@ -36,14 +36,11 @@ export async function GET(request: NextRequest) {
 
     } catch (dbError) {
       console.error('Erro de conexão com o banco de dados:', dbError);
-      
-      // Retornar saldo padrão em caso de erro de conexão
       return NextResponse.json({
-        success: true,
-        balance: 0,
-        offline: true,
-        message: 'Modo offline - saldo não disponível'
-      });
+        success: false,
+        message: 'Erro de conexão com o banco de dados',
+        error: dbError instanceof Error ? dbError.message : String(dbError)
+      }, { status: 500 });
     }
 
   } catch (error) {

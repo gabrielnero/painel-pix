@@ -17,68 +17,53 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      // Tentar conectar ao banco de dados
       await connectToDatabase();
 
-      // Buscar estatísticas do usuário
+      // Buscar todos os pagamentos do usuário
       const payments = await Payment.find({ userId: authResult.userId });
-      
+
+      // Calcular estatísticas
       const totalPayments = payments.length;
       const paidPayments = payments.filter(p => p.status === 'paid').length;
       const pendingPayments = payments.filter(p => p.status === 'pending').length;
-      const totalAmount = payments
-        .filter(p => p.status === 'paid')
-        .reduce((sum, p) => sum + p.amount, 0);
+      const totalAmount = payments.reduce((sum, p) => sum + p.amount, 0);
 
-      // Calcular crescimento (simulado)
-      const monthlyGrowth = Math.floor(Math.random() * 20) + 5;
-      const weeklyGrowth = Math.floor(Math.random() * 10) - 5;
+      // Calcular crescimento mensal (mock por enquanto)
+      const monthlyGrowth = 0;
+      const weeklyGrowth = 0;
+
+      const stats = {
+        totalPayments,
+        totalAmount,
+        pendingPayments,
+        paidPayments,
+        monthlyGrowth,
+        weeklyGrowth
+      };
 
       return NextResponse.json({
         success: true,
-        stats: {
-          totalPayments,
-          totalAmount,
-          pendingPayments,
-          paidPayments,
-          monthlyGrowth,
-          weeklyGrowth
-        }
+        stats
       });
 
     } catch (dbError) {
       console.error('Erro de conexão com o banco de dados:', dbError);
-      
-      // Retornar dados padrão em caso de erro
       return NextResponse.json({
-        success: true,
-        stats: {
-          totalPayments: 0,
-          totalAmount: 0,
-          pendingPayments: 0,
-          paidPayments: 0,
-          monthlyGrowth: 0,
-          weeklyGrowth: 0
-        },
-        offline: true
-      });
+        success: false,
+        message: 'Erro de conexão com o banco de dados',
+        error: dbError instanceof Error ? dbError.message : String(dbError)
+      }, { status: 500 });
     }
 
   } catch (error) {
     console.error('Erro ao buscar estatísticas:', error);
-    
-    // Retornar dados padrão em caso de erro
-    return NextResponse.json({
-      success: true,
-      stats: {
-        totalPayments: 0,
-        totalAmount: 0,
-        pendingPayments: 0,
-        paidPayments: 0,
-        monthlyGrowth: 0,
-        weeklyGrowth: 0
+    return NextResponse.json(
+      { 
+        success: false, 
+        message: 'Erro interno do servidor',
+        error: error instanceof Error ? error.message : String(error)
       },
-      offline: true
-    });
+      { status: 500 }
+    );
   }
 } 

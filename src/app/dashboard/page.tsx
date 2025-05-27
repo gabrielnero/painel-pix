@@ -14,17 +14,18 @@ import {
   FaArrowUp,
   FaArrowDown,
   FaPlus,
-  FaEye,
-  FaSpinner,
-  FaExclamationTriangle
+  FaEye
 } from 'react-icons/fa';
+import NotificationCenter from '@/components/NotificationCenter';
+import ThemeToggle from '@/components/ThemeToggle';
+import AnnouncementBanner from '@/components/AnnouncementBanner';
+import Shoutbox from '@/components/Shoutbox';
+import ActiveUsersWidget from '@/components/ActiveUsersWidget';
 
 export default function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [userBalance, setUserBalance] = useState(0);
-  const [userInfo, setUserInfo] = useState({ username: 'Usuário', role: 'user' });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [userInfo, setUserInfo] = useState({ username: '', role: '' });
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -34,101 +35,65 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  // Buscar dados do usuário com fallback
+  // Buscar dados do usuário
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        setLoading(true);
-        setError(null);
-
-        // Buscar informações do usuário primeiro
-        try {
-          const userResponse = await fetch('/api/auth/check');
-          const userData = await userResponse.json();
-          
-          if (userData.success && userData.user) {
-            setUserInfo({
-              username: userData.user.username || 'Usuário',
-              role: userData.user.role || 'user'
-            });
-          } else {
-            // Fallback para usuário não autenticado
-            console.warn('Usuário não autenticado, usando dados padrão');
-            setUserInfo({ username: 'Usuário', role: 'user' });
-          }
-        } catch (userError) {
-          console.error('Erro ao buscar dados do usuário:', userError);
-          setUserInfo({ username: 'Usuário', role: 'user' });
+        // Buscar saldo
+        const balanceResponse = await fetch('/api/user/balance');
+        const balanceData = await balanceResponse.json();
+        if (balanceData.success) {
+          setUserBalance(balanceData.balance);
         }
 
-        // Buscar saldo com fallback
-        try {
-          const balanceResponse = await fetch('/api/user/balance');
-          const balanceData = await balanceResponse.json();
-          
-          if (balanceData.success) {
-            setUserBalance(balanceData.balance || 0);
-          } else {
-            setUserBalance(0);
-          }
-        } catch (balanceError) {
-          console.error('Erro ao buscar saldo:', balanceError);
-          setUserBalance(0);
-        }
-
-        // Buscar estatísticas com fallback
-        try {
-          const statsResponse = await fetch('/api/user/stats');
-          const statsData = await statsResponse.json();
-          
-          if (statsData.success) {
-            setStats(statsData.stats);
-          } else {
-            // Usar dados padrão se a API falhar
-            setStats({
-              totalPayments: 0,
-              totalAmount: 0,
-              pendingPayments: 0,
-              paidPayments: 0,
-              monthlyGrowth: 0,
-              weeklyGrowth: 0
-            });
-          }
-        } catch (statsError) {
-          console.error('Erro ao buscar estatísticas:', statsError);
-          setStats({
-            totalPayments: 0,
-            totalAmount: 0,
-            pendingPayments: 0,
-            paidPayments: 0,
-            monthlyGrowth: 0,
-            weeklyGrowth: 0
+        // Buscar informações do usuário
+        const userResponse = await fetch('/api/auth/check');
+        const userData = await userResponse.json();
+        if (userData.success && userData.user) {
+          setUserInfo({
+            username: userData.user.username,
+            role: userData.user.role
           });
+          
+          // Atualizar elementos do DOM
+          const usernameElement = document.getElementById('dashboard-username');
+          const roleElement = document.getElementById('dashboard-role');
+          
+          if (usernameElement) {
+            usernameElement.textContent = userData.user.username;
+          }
+          
+          if (roleElement) {
+            const roleText = userData.user.role === 'admin' ? 'Administrador' : 
+                           userData.user.role === 'moderator' ? 'Moderador' : 'Usuário';
+            roleElement.textContent = roleText;
+          }
         }
 
+        // Buscar estatísticas
+        const statsResponse = await fetch('/api/user/stats');
+        const statsData = await statsResponse.json();
+        if (statsData.success) {
+          setStats(statsData.stats);
+        }
       } catch (error) {
-        console.error('Erro geral ao buscar dados:', error);
-        setError('Erro ao carregar dados. Usando modo offline.');
-      } finally {
-        setLoading(false);
+        console.error('Erro ao buscar dados do usuário:', error);
       }
     };
 
     fetchUserData();
     
-    // Atualizar saldo a cada 30 segundos (menos frequente para evitar erros)
+    // Atualizar saldo a cada 10 segundos
     const balanceInterval = setInterval(() => {
       fetch('/api/user/balance')
         .then(res => res.json())
         .then(data => {
           if (data.success) {
-            setUserBalance(data.balance || 0);
+            setUserBalance(data.balance);
           }
         })
-        .catch(error => {
-          console.error('Erro ao atualizar saldo:', error);
-        });
-    }, 30000);
+        .catch(console.error);
+    }, 10000);
     
     return () => clearInterval(balanceInterval);
   }, []);
@@ -187,37 +152,15 @@ export default function Dashboard() {
     }
   ];
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <FaSpinner className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">Carregando dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="container mx-auto px-4 py-8">
-        {/* Error Banner */}
-        {error && (
-          <div className="mb-6 p-4 bg-yellow-100 dark:bg-yellow-900/20 border border-yellow-400 dark:border-yellow-600 rounded-lg">
-            <div className="flex items-center">
-              <FaExclamationTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mr-3" />
-              <p className="text-yellow-800 dark:text-yellow-200">{error}</p>
-            </div>
-          </div>
-        )}
-
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                Bem-vindo de volta, {userInfo.username}! 👋
+                Bem-vindo de volta! 👋
               </h1>
               <p className="text-gray-600 dark:text-gray-300">
                 Aqui está um resumo da sua atividade hoje
@@ -227,15 +170,18 @@ export default function Dashboard() {
               <div className="text-sm text-gray-500 dark:text-gray-400">
                 {currentTime.toLocaleString('pt-BR')}
               </div>
-              {/* Saldo simplificado */}
-              <div className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg">
-                <FaMoneyBillWave className="h-4 w-4" />
-                <span className="text-sm font-medium">
-                  R$ {userBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
+              <NotificationCenter />
+              <ThemeToggle />
             </div>
           </div>
+        </div>
+
+        {/* Announcement Banner */}
+        <AnnouncementBanner />
+
+        {/* Shoutbox */}
+        <div className="mb-8">
+          <Shoutbox />
         </div>
 
         {/* Stats Cards */}
@@ -259,7 +205,6 @@ export default function Dashboard() {
               </span>
             </div>
           </div>
-          
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -329,38 +274,44 @@ export default function Dashboard() {
             </div>
             <div className="mt-4">
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                Taxa de sucesso: {stats.totalPayments > 0 ? ((stats.paidPayments / stats.totalPayments) * 100).toFixed(1) : '0'}%
+                Taxa de sucesso: {((stats.paidPayments / stats.totalPayments) * 100).toFixed(1)}%
               </span>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Quick Actions */}
-          <div className="lg:col-span-1">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Ações Rápidas</h2>
-            <div className="space-y-4">
-              {quickActions.map((action, index) => (
-                <Link
-                  key={index}
-                  href={action.href}
-                  className="block bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-all duration-300 group"
-                >
-                  <div className="flex items-center">
-                    <div className={`p-3 rounded-lg ${action.color} transition-colors duration-300`}>
-                      <action.icon className={`h-6 w-6 ${action.iconColor}`} />
+          {/* Sidebar */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Active Users Widget */}
+            <ActiveUsersWidget />
+
+            {/* Quick Actions */}
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Ações Rápidas</h2>
+              <div className="space-y-4">
+                {quickActions.map((action, index) => (
+                  <Link
+                    key={index}
+                    href={action.href}
+                    className="block bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-all duration-300 group"
+                  >
+                    <div className="flex items-center">
+                      <div className={`p-3 rounded-lg ${action.color} transition-colors duration-300`}>
+                        <action.icon className={`h-6 w-6 ${action.iconColor}`} />
+                      </div>
+                      <div className="ml-4 flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          {action.title}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {action.description}
+                        </p>
+                      </div>
                     </div>
-                    <div className="ml-4 flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        {action.title}
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {action.description}
-                      </p>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -379,54 +330,45 @@ export default function Dashboard() {
 
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
               <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {recentPayments.length > 0 ? (
-                  recentPayments.map((payment, index) => (
-                    <div key={index} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <div className={`p-2 rounded-lg ${
-                            payment.status === 'paid' 
-                              ? 'bg-green-100 dark:bg-green-900/20' 
-                              : 'bg-yellow-100 dark:bg-yellow-900/20'
-                          }`}>
-                            {payment.status === 'paid' ? (
-                              <FaCheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                            ) : (
-                              <FaClock className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-                            )}
-                          </div>
-                          <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
-                              {payment.customer}
-                            </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {payment.id} • {payment.time}
-                            </p>
-                          </div>
+                {recentPayments.map((payment, index) => (
+                  <div key={index} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className={`p-2 rounded-lg ${
+                          payment.status === 'paid' 
+                            ? 'bg-green-100 dark:bg-green-900/20' 
+                            : 'bg-yellow-100 dark:bg-yellow-900/20'
+                        }`}>
+                          {payment.status === 'paid' ? (
+                            <FaCheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                          ) : (
+                            <FaClock className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+                          )}
                         </div>
-                        <div className="text-right">
-                          <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                            R$ {payment.amount.toFixed(2)}
+                        <div className="ml-4">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {payment.customer}
                           </p>
-                          <p className={`text-sm font-medium ${
-                            payment.status === 'paid' 
-                              ? 'text-green-600 dark:text-green-400' 
-                              : 'text-yellow-600 dark:text-yellow-400'
-                          }`}>
-                            {payment.status === 'paid' ? 'Pago' : 'Pendente'}
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {payment.id} • {payment.time}
                           </p>
                         </div>
                       </div>
+                      <div className="text-right">
+                        <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                          R$ {payment.amount.toFixed(2)}
+                        </p>
+                        <p className={`text-sm font-medium ${
+                          payment.status === 'paid' 
+                            ? 'text-green-600 dark:text-green-400' 
+                            : 'text-yellow-600 dark:text-yellow-400'
+                        }`}>
+                          {payment.status === 'paid' ? 'Pago' : 'Pendente'}
+                        </p>
+                      </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="p-8 text-center">
-                    <FaClock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 dark:text-gray-400">
-                      Nenhuma atividade recente encontrada
-                    </p>
                   </div>
-                )}
+                ))}
               </div>
             </div>
 
@@ -436,11 +378,8 @@ export default function Dashboard() {
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Seu Perfil</h3>
                   <div className="space-y-1 text-blue-100">
-                    <p className="text-sm">Usuário: <span className="font-medium text-white">{userInfo.username}</span></p>
-                    <p className="text-sm">Tipo: <span className="font-medium text-white">
-                      {userInfo.role === 'admin' ? 'Administrador' : 
-                       userInfo.role === 'moderator' ? 'Moderador' : 'Usuário'}
-                    </span></p>
+                    <p className="text-sm">Usuário: <span className="font-medium text-white" id="dashboard-username">Carregando...</span></p>
+                    <p className="text-sm">Tipo: <span className="font-medium text-white" id="dashboard-role">Carregando...</span></p>
                     <p className="text-sm">Status: <span className="font-medium text-white">Ativo</span></p>
                   </div>
                 </div>

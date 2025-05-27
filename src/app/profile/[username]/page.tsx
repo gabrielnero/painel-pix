@@ -2,83 +2,73 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
 import { toast } from 'react-hot-toast';
+import Link from 'next/link';
 import { 
   FaArrowLeft, 
   FaUser, 
   FaMapMarkerAlt,
-  FaLink,
-  FaTelegram,
+  FaGlobe,
   FaTwitter,
   FaInstagram,
-  FaEye,
-  FaHeart,
-  FaComment,
-  FaUserPlus,
-  FaUserMinus,
-  FaEnvelope,
-  FaSpinner,
+  FaLinkedin,
+  FaGithub,
   FaCalendarAlt,
-  FaShieldAlt,
-  FaTrophy,
-  FaStar
+  FaEye,
+  FaCrown,
+  FaComment,
+  FaPaperPlane,
+  FaSpinner
 } from 'react-icons/fa';
 
-interface ProfileData {
+interface UserProfile {
   _id: string;
   username: string;
+  profilePicture?: string;
+  bio: string;
+  location: string;
+  website: string;
+  socialLinks: {
+    twitter: string;
+    instagram: string;
+    linkedin: string;
+    github: string;
+  };
   role: string;
+  isVip: boolean;
   createdAt: string;
-  lastLogin?: string;
-  isOwnProfile: boolean;
-  isFollowing: boolean;
-  profile: {
-    avatar: string;
-    displayName: string;
-    bio: string;
-    location: string;
-    website: string;
-    socialLinks: {
-      telegram: string;
-      twitter: string;
-      instagram: string;
-    };
-    stats: {
-      profileViews: number;
-      totalTransactions: number;
-      reputation: number;
-      badges: string[];
-    };
+  profileViews: number;
+}
+
+interface Comment {
+  _id: string;
+  content: string;
+  createdAt: string;
+  authorId: {
+    username: string;
+    profilePicture?: string;
+    role: string;
   };
-  socialStats: {
-    followers: number;
-    following: number;
-  };
-  recentComments: Array<{
-    _id: string;
-    author: {
-      username: string;
-      profile: {
-        avatar: string;
-        displayName: string;
-      };
-    };
-    content: string;
-    createdAt: string;
-    likes: string[];
-  }>;
+}
+
+interface Stats {
+  memberSince: string;
+  totalEarnings: number;
+  profileViews: number;
+  isVip: boolean;
+  role: string;
 }
 
 export default function PublicProfilePage() {
   const params = useParams();
   const username = params.username as string;
   
-  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [commenting, setCommenting] = useState(false);
   const [newComment, setNewComment] = useState('');
-  const [following, setFollowing] = useState(false);
 
   useEffect(() => {
     if (username) {
@@ -92,73 +82,65 @@ export default function PublicProfilePage() {
       const data = await response.json();
       
       if (data.success) {
-        setProfile(data.profile);
-        setFollowing(data.profile.isFollowing);
+        setProfile(data.user);
+        setComments(data.comments || []);
+        setStats(data.stats);
       } else {
-        toast.error(data.message || 'Perfil não encontrado');
+        toast.error(data.message || 'Erro ao carregar perfil');
       }
     } catch (error) {
-      console.error('Erro ao buscar perfil:', error);
       toast.error('Erro ao carregar perfil');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFollow = async () => {
-    if (!profile) return;
-
-    try {
-      const response = await fetch(`/api/user/follow/${profile._id}`, {
-        method: following ? 'DELETE' : 'POST',
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setFollowing(!following);
-        setProfile(prev => prev ? {
-          ...prev,
-          socialStats: {
-            ...prev.socialStats,
-            followers: prev.socialStats.followers + (following ? -1 : 1)
-          }
-        } : null);
-        toast.success(following ? 'Deixou de seguir' : 'Agora você está seguindo');
-      } else {
-        toast.error(data.message || 'Erro ao seguir usuário');
-      }
-    } catch (error) {
-      console.error('Erro ao seguir:', error);
-      toast.error('Erro ao seguir usuário');
+  const handleAddComment = async () => {
+    if (!newComment.trim()) {
+      toast.error('Digite um comentário');
+      return;
     }
-  };
 
-  const handleComment = async () => {
-    if (!profile || !newComment.trim()) return;
+    if (newComment.length > 1000) {
+      toast.error('Comentário muito longo (máximo 1000 caracteres)');
+      return;
+    }
 
     setCommenting(true);
+
     try {
-      const response = await fetch(`/api/user/profile/${profile._id}/comment`, {
+      const response = await fetch(`/api/user/profile/${username}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ content: newComment.trim() }),
+        body: JSON.stringify({ content: newComment }),
       });
 
       const data = await response.json();
+
       if (data.success) {
+        setComments(prev => [data.comment, ...prev]);
         setNewComment('');
-        fetchProfile(); // Recarregar para mostrar novo comentário
-        toast.success('Comentário adicionado!');
+        toast.success('Comentário adicionado com sucesso!');
       } else {
-        toast.error(data.message || 'Erro ao comentar');
+        toast.error(data.message || 'Erro ao adicionar comentário');
       }
     } catch (error) {
-      console.error('Erro ao comentar:', error);
-      toast.error('Erro ao comentar');
+      toast.error('Erro ao adicionar comentário');
     } finally {
       setCommenting(false);
+    }
+  };
+
+  const getRoleDisplay = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return { text: 'Administrador', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-900/20' };
+      case 'moderator':
+        return { text: 'Moderador', color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-100 dark:bg-purple-900/20' };
+      default:
+        return { text: 'Usuário', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/20' };
     }
   };
 
@@ -170,35 +152,23 @@ export default function PublicProfilePage() {
     });
   };
 
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return <FaShieldAlt className="h-4 w-4 text-red-500" />;
-      case 'moderator':
-        return <FaStar className="h-4 w-4 text-yellow-500" />;
-      default:
-        return <FaUser className="h-4 w-4 text-gray-500" />;
-    }
-  };
+  const formatRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  const getRoleText = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'Administrador';
-      case 'moderator':
-        return 'Moderador';
-      default:
-        return 'Usuário';
-    }
+    if (diffInSeconds < 60) return 'agora mesmo';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m atrás`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h atrás`;
+    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d atrás`;
+    
+    return formatDate(dateString);
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <FaSpinner className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">Carregando perfil...</p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
       </div>
     );
   }
@@ -207,328 +177,262 @@ export default function PublicProfilePage() {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <FaUser className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            Perfil não encontrado
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            O usuário @{username} não existe ou não está disponível.
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Perfil não encontrado</h1>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">
+            Este usuário não existe ou seu perfil é privado.
           </p>
-          <Link
+          <Link 
             href="/dashboard"
-            className="inline-flex items-center space-x-2 text-blue-600 hover:text-blue-800 font-medium"
+            className="inline-flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
           >
-            <FaArrowLeft className="h-4 w-4" />
-            <span>Voltar ao Dashboard</span>
+            <FaArrowLeft className="mr-2" />
+            Voltar ao Dashboard
           </Link>
         </div>
       </div>
     );
   }
 
+  const roleDisplay = getRoleDisplay(profile.role);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-4"
-          >
-            <FaArrowLeft className="h-4 w-4" />
-            <span>Voltar</span>
+        <div className="flex items-center mb-8">
+          <Link href="/dashboard" className="flex items-center text-sm hover:text-blue-600 transition-colors duration-300 mr-4">
+            <FaArrowLeft className="mr-2" />
+            Voltar ao Dashboard
           </Link>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Profile Info */}
+          {/* Profile Card */}
           <div className="lg:col-span-1">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              {/* Avatar and Basic Info */}
+              {/* Avatar Section */}
               <div className="text-center mb-6">
                 <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mx-auto mb-4">
-                  {profile.profile.avatar ? (
-                    <img
-                      src={profile.profile.avatar}
-                      alt={profile.profile.displayName || profile.username}
+                  {profile.profilePicture ? (
+                    <img 
+                      src={profile.profilePicture} 
+                      alt={profile.username}
                       className="w-full h-full object-cover"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <FaUser className="h-12 w-12 text-gray-400" />
+                      <FaUser className="text-4xl text-gray-400" />
                     </div>
                   )}
                 </div>
-                
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                  {profile.profile.displayName || profile.username}
+
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 flex items-center justify-center">
+                  {profile.username}
+                  {profile.isVip && (
+                    <FaCrown className="ml-2 text-yellow-500" title="Usuário VIP" />
+                  )}
                 </h1>
                 
-                <p className="text-gray-500 dark:text-gray-400 mb-2">
-                  @{profile.username}
-                </p>
-                
-                <div className="flex items-center justify-center space-x-2 mb-4">
-                  {getRoleIcon(profile.role)}
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    {getRoleText(profile.role)}
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${roleDisplay.bg} ${roleDisplay.color}`}>
+                  {roleDisplay.text}
+                </span>
+              </div>
+
+              {/* Profile Stats */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Membro desde:</span>
+                  <span className="text-gray-900 dark:text-white font-medium">
+                    {formatDate(profile.createdAt)}
                   </span>
                 </div>
-
-                {/* Action Buttons */}
-                {!profile.isOwnProfile && (
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={handleFollow}
-                      className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                        following
-                          ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white'
-                      }`}
-                    >
-                      {following ? <FaUserMinus className="h-4 w-4" /> : <FaUserPlus className="h-4 w-4" />}
-                      <span>{following ? 'Seguindo' : 'Seguir'}</span>
-                    </button>
-                    
-                    <button className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-                      <FaEnvelope className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-4 mb-6 text-center">
-                <div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {profile.socialStats.followers}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Seguidores</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {profile.socialStats.following}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Seguindo</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {profile.profile.stats.profileViews}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Visualizações</p>
-                </div>
-              </div>
-
-              {/* Bio */}
-              {profile.profile.bio && (
-                <div className="mb-6">
-                  <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                    {profile.profile.bio}
-                  </p>
-                </div>
-              )}
-
-              {/* Additional Info */}
-              <div className="space-y-3 text-sm">
-                {profile.profile.location && (
-                  <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400">
-                    <FaMapMarkerAlt className="h-4 w-4" />
-                    <span>{profile.profile.location}</span>
-                  </div>
-                )}
                 
-                {profile.profile.website && (
-                  <div className="flex items-center space-x-2">
-                    <FaLink className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                    <a
-                      href={profile.profile.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                    >
-                      {profile.profile.website}
-                    </a>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Visualizações:</span>
+                  <span className="text-gray-900 dark:text-white font-medium flex items-center">
+                    <FaEye className="mr-1" />
+                    {profile.profileViews}
+                  </span>
+                </div>
+                
+                {stats && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400">Ganhos totais:</span>
+                    <span className="text-green-600 dark:text-green-400 font-medium">
+                      R$ {stats.totalEarnings.toFixed(2)}
+                    </span>
                   </div>
                 )}
-                
-                <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400">
-                  <FaCalendarAlt className="h-4 w-4" />
-                  <span>Membro desde {formatDate(profile.createdAt)}</span>
-                </div>
               </div>
-
-              {/* Social Links */}
-              {(profile.profile.socialLinks.telegram || profile.profile.socialLinks.twitter || profile.profile.socialLinks.instagram) && (
-                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                  <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
-                    Redes Sociais
-                  </h3>
-                  <div className="flex space-x-3">
-                    {profile.profile.socialLinks.telegram && (
-                      <a
-                        href={`https://t.me/${profile.profile.socialLinks.telegram.replace('@', '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                      >
-                        <FaTelegram className="h-4 w-4" />
-                      </a>
-                    )}
-                    {profile.profile.socialLinks.twitter && (
-                      <a
-                        href={`https://twitter.com/${profile.profile.socialLinks.twitter.replace('@', '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-colors"
-                      >
-                        <FaTwitter className="h-4 w-4" />
-                      </a>
-                    )}
-                    {profile.profile.socialLinks.instagram && (
-                      <a
-                        href={`https://instagram.com/${profile.profile.socialLinks.instagram.replace('@', '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors"
-                      >
-                        <FaInstagram className="h-4 w-4" />
-                      </a>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Main Content */}
+          {/* Profile Details */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <div className="flex items-center space-x-3">
-                  <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                    <FaTrophy className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {profile.profile.stats.reputation}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Reputação</p>
-                  </div>
-                </div>
-              </div>
+            {/* Bio and Info Section */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Sobre</h2>
 
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <div className="flex items-center space-x-3">
-                  <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                    <FaEye className="h-6 w-6 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {profile.profile.stats.totalTransactions}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Transações</p>
-                  </div>
+              <div className="space-y-4">
+                {/* Bio */}
+                <div>
+                  <p className="text-gray-900 dark:text-white">
+                    {profile.bio || 'Este usuário ainda não adicionou uma biografia.'}
+                  </p>
                 </div>
-              </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <div className="flex items-center space-x-3">
-                  <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                    <FaStar className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                {/* Location */}
+                {profile.location && (
+                  <div className="flex items-center">
+                    <FaMapMarkerAlt className="text-gray-500 mr-2" />
+                    <span className="text-gray-900 dark:text-white">{profile.location}</span>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {profile.profile.stats.badges.length}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Badges</p>
+                )}
+
+                {/* Website */}
+                {profile.website && (
+                  <div className="flex items-center">
+                    <FaGlobe className="text-gray-500 mr-2" />
+                    <a 
+                      href={profile.website} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:text-blue-600 hover:underline"
+                    >
+                      {profile.website}
+                    </a>
                   </div>
+                )}
+
+                {/* Social Links */}
+                <div className="flex space-x-4">
+                  {profile.socialLinks?.twitter && (
+                    <a 
+                      href={`https://twitter.com/${profile.socialLinks.twitter}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-500 transition-colors"
+                      title="Twitter"
+                    >
+                      <FaTwitter className="text-xl" />
+                    </a>
+                  )}
+                  {profile.socialLinks?.instagram && (
+                    <a 
+                      href={`https://instagram.com/${profile.socialLinks.instagram}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-pink-500 hover:text-pink-600 transition-colors"
+                      title="Instagram"
+                    >
+                      <FaInstagram className="text-xl" />
+                    </a>
+                  )}
+                  {profile.socialLinks?.linkedin && (
+                    <a 
+                      href={`https://linkedin.com/in/${profile.socialLinks.linkedin}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-700 transition-colors"
+                      title="LinkedIn"
+                    >
+                      <FaLinkedin className="text-xl" />
+                    </a>
+                  )}
+                  {profile.socialLinks?.github && (
+                    <a 
+                      href={`https://github.com/${profile.socialLinks.github}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+                      title="GitHub"
+                    >
+                      <FaGithub className="text-xl" />
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Comments Section */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-                Comentários do Perfil
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                <FaComment className="mr-2" />
+                Comentários ({comments.length})
               </h2>
 
               {/* Add Comment */}
-              {!profile.isOwnProfile && (
-                <div className="mb-6">
+              <div className="mb-6">
+                <div className="flex space-x-3">
                   <textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Escreva um comentário..."
-                    rows={3}
+                    placeholder="Deixe um comentário..."
                     maxLength={1000}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                    rows={3}
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
                   />
-                  <div className="flex items-center justify-between mt-3">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {newComment.length}/1000 caracteres
-                    </span>
-                    <button
-                      onClick={handleComment}
-                      disabled={commenting || !newComment.trim()}
-                      className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                    >
-                      {commenting ? (
-                        <FaSpinner className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <FaComment className="h-4 w-4" />
-                      )}
-                      <span>{commenting ? 'Enviando...' : 'Comentar'}</span>
-                    </button>
-                  </div>
+                  <button
+                    onClick={handleAddComment}
+                    disabled={commenting || !newComment.trim()}
+                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    {commenting ? (
+                      <FaSpinner className="animate-spin" />
+                    ) : (
+                      <FaPaperPlane />
+                    )}
+                  </button>
                 </div>
-              )}
+                <p className="text-xs text-gray-500 mt-1">{newComment.length}/1000 caracteres</p>
+              </div>
 
               {/* Comments List */}
               <div className="space-y-4">
-                {profile.recentComments.length > 0 ? (
-                  profile.recentComments.map((comment) => (
-                    <div key={comment._id} className="flex space-x-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
-                        {comment.author.profile.avatar ? (
-                          <img
-                            src={comment.author.profile.avatar}
-                            alt={comment.author.profile.displayName || comment.author.username}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <FaUser className="h-4 w-4 text-gray-400" />
+                {comments.length > 0 ? (
+                  comments.map((comment) => {
+                    const commentRoleDisplay = getRoleDisplay(comment.authorId.role);
+                    
+                    return (
+                      <div key={comment._id} className="border-b border-gray-200 dark:border-gray-700 pb-4 last:border-b-0">
+                        <div className="flex items-start space-x-3">
+                          <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
+                            {comment.authorId.profilePicture ? (
+                              <img 
+                                src={comment.authorId.profilePicture} 
+                                alt={comment.authorId.username}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <FaUser className="text-gray-400" />
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <span className="font-medium text-gray-900 dark:text-white">
-                            {comment.author.profile.displayName || comment.author.username}
-                          </span>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">
-                            @{comment.author.username}
-                          </span>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">
-                            {formatDate(comment.createdAt)}
-                          </span>
-                        </div>
-                        <p className="text-gray-700 dark:text-gray-300 text-sm">
-                          {comment.content}
-                        </p>
-                        <div className="flex items-center space-x-4 mt-2">
-                          <button className="flex items-center space-x-1 text-gray-500 hover:text-red-500 transition-colors">
-                            <FaHeart className="h-3 w-3" />
-                            <span className="text-xs">{comment.likes.length}</span>
-                          </button>
+                          
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="font-medium text-gray-900 dark:text-white">
+                                {comment.authorId.username}
+                              </span>
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${commentRoleDisplay.bg} ${commentRoleDisplay.color}`}>
+                                {commentRoleDisplay.text}
+                              </span>
+                              <span className="text-sm text-gray-500 dark:text-gray-400">
+                                {formatRelativeTime(comment.createdAt)}
+                              </span>
+                            </div>
+                            <p className="text-gray-900 dark:text-white">
+                              {comment.content}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="text-center py-8">
-                    <FaComment className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <FaComment className="mx-auto text-4xl text-gray-300 dark:text-gray-600 mb-4" />
                     <p className="text-gray-500 dark:text-gray-400">
                       Nenhum comentário ainda. Seja o primeiro a comentar!
                     </p>

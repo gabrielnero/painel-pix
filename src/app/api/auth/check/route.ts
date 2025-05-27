@@ -51,19 +51,13 @@ export async function GET(request: NextRequest) {
     } catch (dbError) {
       console.error('Erro de conexão com o banco de dados:', dbError);
       
-      // Retornar usuário padrão em caso de erro de conexão
+      // Em produção, retornar erro se não conseguir conectar ao banco
       return NextResponse.json({
-        success: true,
-        authenticated: true,
-        user: {
-          id: decoded.userId,
-          username: 'Usuário',
-          email: 'user@offline.local',
-          role: decoded.role || 'user'
-        },
-        offline: true,
-        message: 'Modo offline - dados limitados'
-      });
+        success: false,
+        authenticated: false,
+        message: 'Erro de conexão com o banco de dados',
+        error: dbError instanceof Error ? dbError.message : String(dbError)
+      }, { status: 500 });
     }
     
     const user = await User.findById(decoded.userId);

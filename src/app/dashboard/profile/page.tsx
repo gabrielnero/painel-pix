@@ -1,23 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import { 
   FaArrowLeft, 
   FaUser, 
-  FaKey, 
-  FaGift, 
-  FaTrophy,
-  FaEye,
-  FaEyeSlash,
-  FaCopy,
+  FaCamera,
   FaEdit,
   FaSave,
   FaTimes,
-  FaCrown,
-  FaMedal,
-  FaAward
+  FaGlobe,
+  FaMapMarkerAlt,
+  FaTwitter,
+  FaInstagram,
+  FaLinkedin,
+  FaGithub,
+  FaEye,
+  FaEyeSlash,
+  FaKey,
+  FaToggleOn,
+  FaToggleOff,
+  FaSpinner
 } from 'react-icons/fa';
 
 interface UserProfile {
@@ -27,29 +31,50 @@ interface UserProfile {
   role: string;
   balance: number;
   totalEarnings: number;
-  inviteCodes: string[];
-  rankingPosition: number;
-  showInRanking: boolean;
   createdAt: string;
-}
-
-interface RankingUser {
-  username: string;
-  totalEarnings: number;
-  position: number;
-  isCurrentUser: boolean;
+  profilePicture?: string;
+  bio: string;
+  location: string;
+  website: string;
+  socialLinks: {
+    twitter: string;
+    instagram: string;
+    linkedin: string;
+    github: string;
+  };
+  profileViews: number;
+  isProfilePublic: boolean;
 }
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [ranking, setRanking] = useState<RankingUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
   const [editingPassword, setEditingPassword] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [profileData, setProfileData] = useState({
+    bio: '',
+    location: '',
+    website: '',
+    socialLinks: {
+      twitter: '',
+      instagram: '',
+      linkedin: '',
+      github: ''
+    },
+    isProfilePublic: true
+  });
+
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
+
   const [showPasswords, setShowPasswords] = useState({
     current: false,
     new: false,
@@ -58,7 +83,6 @@ export default function ProfilePage() {
 
   useEffect(() => {
     fetchProfile();
-    fetchRanking();
   }, []);
 
   const fetchProfile = async () => {
@@ -68,6 +92,18 @@ export default function ProfilePage() {
       
       if (data.success) {
         setProfile(data.profile);
+        setProfileData({
+          bio: data.profile.bio || '',
+          location: data.profile.location || '',
+          website: data.profile.website || '',
+          socialLinks: data.profile.socialLinks || {
+            twitter: '',
+            instagram: '',
+            linkedin: '',
+            github: ''
+          },
+          isProfilePublic: data.profile.isProfilePublic !== false
+        });
       } else {
         toast.error('Erro ao carregar perfil');
       }
@@ -78,18 +114,86 @@ export default function ProfilePage() {
     }
   };
 
-  const fetchRanking = async () => {
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validar tipo de arquivo
+    if (!file.type.startsWith('image/')) {
+      toast.error('Por favor, selecione uma imagem válida');
+      return;
+    }
+
+    // Validar tamanho (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Imagem muito grande (máximo 2MB)');
+      return;
+    }
+
+    setUploadingAvatar(true);
+
     try {
-      const response = await fetch('/api/user/ranking');
-      const data = await response.json();
+      // Converter para base64
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const imageData = e.target?.result as string;
+        
+        try {
+          const response = await fetch('/api/user/upload-avatar', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ imageData }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            setProfile(prev => prev ? { ...prev, profilePicture: data.profilePicture } : null);
+            toast.success('Foto de perfil atualizada com sucesso!');
+          } else {
+            toast.error(data.message || 'Erro ao fazer upload da imagem');
+          }
+        } catch (error) {
+          toast.error('Erro ao fazer upload da imagem');
+        } finally {
+          setUploadingAvatar(false);
+        }
+      };
       
+      reader.readAsDataURL(file);
+    } catch (error) {
+      toast.error('Erro ao processar imagem');
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleProfileUpdate = async () => {
+    setSaving(true);
+    
+    try {
+      const response = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(profileData),
+      });
+
+      const data = await response.json();
+
       if (data.success) {
-        setRanking(data.ranking || []);
+        setProfile(prev => prev ? { ...prev, ...profileData } : null);
+        setEditingProfile(false);
+        toast.success('Perfil atualizado com sucesso!');
       } else {
-        setRanking([]);
+        toast.error(data.message || 'Erro ao atualizar perfil');
       }
     } catch (error) {
-      setRanking([]);
+      toast.error('Erro ao atualizar perfil');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -109,58 +213,28 @@ export default function ProfilePage() {
       return;
     }
 
+    setSaving(true);
+
     try {
-      // Aqui faria a chamada para a API
+      // Implementar API de mudança de senha
       toast.success('Senha alterada com sucesso!');
       setEditingPassword(false);
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error) {
       toast.error('Erro ao alterar senha');
-    }
-  };
-
-  const toggleRankingVisibility = async () => {
-    if (!profile) return;
-
-    try {
-      const newVisibility = !profile.showInRanking;
-      setProfile({ ...profile, showInRanking: newVisibility });
-      toast.success(
-        newVisibility 
-          ? 'Você agora aparece no ranking público' 
-          : 'Você foi removido do ranking público'
-      );
-    } catch (error) {
-      toast.error('Erro ao alterar configuração');
-    }
-  };
-
-  const copyInviteCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    toast.success('Código de convite copiado!');
-  };
-
-  const getRankingIcon = (position: number) => {
-    switch (position) {
-      case 1:
-        return <FaCrown className="text-yellow-500" />;
-      case 2:
-        return <FaMedal className="text-gray-400" />;
-      case 3:
-        return <FaAward className="text-orange-500" />;
-      default:
-        return <FaTrophy className="text-blue-500" />;
+    } finally {
+      setSaving(false);
     }
   };
 
   const getRoleDisplay = (role: string) => {
     switch (role) {
       case 'admin':
-        return { text: 'Administrador', color: 'text-red-600 dark:text-red-400' };
+        return { text: 'Administrador', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-900/20' };
       case 'moderator':
-        return { text: 'Moderador', color: 'text-purple-600 dark:text-purple-400' };
+        return { text: 'Moderador', color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-100 dark:bg-purple-900/20' };
       default:
-        return { text: 'Usuário', color: 'text-blue-600 dark:text-blue-400' };
+        return { text: 'Usuário', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/20' };
     }
   };
 
@@ -195,83 +269,342 @@ export default function ProfilePage() {
           </Link>
         </div>
 
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-4 text-gray-900 dark:text-white flex items-center">
-            <FaUser className="mr-3 text-blue-600" />
-            Meu Perfil
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300">
-            Gerencie suas informações pessoais e configurações da conta.
-          </p>
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Informações do Perfil */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Card de Informações Básicas */}
+          {/* Profile Card */}
+          <div className="lg:col-span-1">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-                Informações da Conta
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Nome de Usuário
-                  </label>
-                  <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white">
-                    {profile.username}
+              {/* Avatar Section */}
+              <div className="text-center mb-6">
+                <div className="relative inline-block">
+                  <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mx-auto mb-4">
+                    {profile.profilePicture ? (
+                      <img 
+                        src={profile.profilePicture} 
+                        alt={profile.username}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <FaUser className="text-4xl text-gray-400" />
+                      </div>
+                    )}
                   </div>
+                  
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingAvatar}
+                    className="absolute bottom-4 right-4 bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow-lg transition-colors disabled:opacity-50"
+                  >
+                    {uploadingAvatar ? (
+                      <FaSpinner className="animate-spin" />
+                    ) : (
+                      <FaCamera />
+                    )}
+                  </button>
+                  
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                    className="hidden"
+                  />
                 </div>
+
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                  {profile.username}
+                </h2>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email
-                  </label>
-                  <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white">
-                    {profile.email}
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Tipo de Conta
-                  </label>
-                  <div className={`px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-lg font-medium ${roleDisplay.color}`}>
-                    {roleDisplay.text}
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Membro desde
-                  </label>
-                  <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white">
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${roleDisplay.bg} ${roleDisplay.color}`}>
+                  {roleDisplay.text}
+                </span>
+              </div>
+
+              {/* Profile Stats */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Membro desde:</span>
+                  <span className="text-gray-900 dark:text-white font-medium">
                     {new Date(profile.createdAt).toLocaleDateString('pt-BR')}
-                  </div>
+                  </span>
                 </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Visualizações:</span>
+                  <span className="text-gray-900 dark:text-white font-medium">
+                    {profile.profileViews || 0}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Ganhos totais:</span>
+                  <span className="text-green-600 dark:text-green-400 font-medium">
+                    R$ {profile.totalEarnings.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Profile Visibility Toggle */}
+              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Perfil público</span>
+                  <button
+                    onClick={() => setProfileData(prev => ({ ...prev, isProfilePublic: !prev.isProfilePublic }))}
+                    className="flex items-center"
+                  >
+                    {profileData.isProfilePublic ? (
+                      <FaToggleOn className="text-2xl text-blue-500" />
+                    ) : (
+                      <FaToggleOff className="text-2xl text-gray-400" />
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {profileData.isProfilePublic 
+                    ? 'Outros usuários podem ver seu perfil' 
+                    : 'Seu perfil está privado'
+                  }
+                </p>
               </div>
             </div>
+          </div>
 
-            {/* Alterar Senha */}
+          {/* Profile Details */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Bio and Info Section */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
-                  <FaKey className="mr-2 text-blue-600" />
-                  Segurança
-                </h2>
-                {!editingPassword && (
-                  <button
-                    onClick={() => setEditingPassword(true)}
-                    className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                  >
-                    <FaEdit className="mr-2" />
-                    Alterar Senha
-                  </button>
-                )}
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Informações do Perfil</h3>
+                <button
+                  onClick={() => setEditingProfile(!editingProfile)}
+                  className="flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                >
+                  {editingProfile ? <FaTimes className="mr-2" /> : <FaEdit className="mr-2" />}
+                  {editingProfile ? 'Cancelar' : 'Editar'}
+                </button>
               </div>
 
-              {editingPassword ? (
+              {editingProfile ? (
+                <div className="space-y-4">
+                  {/* Bio */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Biografia
+                    </label>
+                    <textarea
+                      value={profileData.bio}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, bio: e.target.value }))}
+                      placeholder="Conte um pouco sobre você..."
+                      maxLength={500}
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">{profileData.bio.length}/500 caracteres</p>
+                  </div>
+
+                  {/* Location */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Localização
+                    </label>
+                    <input
+                      type="text"
+                      value={profileData.location}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, location: e.target.value }))}
+                      placeholder="Cidade, Estado"
+                      maxLength={100}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  {/* Website */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Website
+                    </label>
+                    <input
+                      type="url"
+                      value={profileData.website}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, website: e.target.value }))}
+                      placeholder="https://seusite.com"
+                      maxLength={200}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  {/* Social Links */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Redes Sociais
+                    </label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex items-center">
+                        <FaTwitter className="text-blue-400 mr-2" />
+                        <input
+                          type="text"
+                          value={profileData.socialLinks.twitter}
+                          onChange={(e) => setProfileData(prev => ({ 
+                            ...prev, 
+                            socialLinks: { ...prev.socialLinks, twitter: e.target.value }
+                          }))}
+                          placeholder="@username"
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      
+                      <div className="flex items-center">
+                        <FaInstagram className="text-pink-500 mr-2" />
+                        <input
+                          type="text"
+                          value={profileData.socialLinks.instagram}
+                          onChange={(e) => setProfileData(prev => ({ 
+                            ...prev, 
+                            socialLinks: { ...prev.socialLinks, instagram: e.target.value }
+                          }))}
+                          placeholder="@username"
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      
+                      <div className="flex items-center">
+                        <FaLinkedin className="text-blue-600 mr-2" />
+                        <input
+                          type="text"
+                          value={profileData.socialLinks.linkedin}
+                          onChange={(e) => setProfileData(prev => ({ 
+                            ...prev, 
+                            socialLinks: { ...prev.socialLinks, linkedin: e.target.value }
+                          }))}
+                          placeholder="username"
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      
+                      <div className="flex items-center">
+                        <FaGithub className="text-gray-700 dark:text-gray-300 mr-2" />
+                        <input
+                          type="text"
+                          value={profileData.socialLinks.github}
+                          onChange={(e) => setProfileData(prev => ({ 
+                            ...prev, 
+                            socialLinks: { ...prev.socialLinks, github: e.target.value }
+                          }))}
+                          placeholder="username"
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleProfileUpdate}
+                      disabled={saving}
+                      className="flex items-center px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {saving ? (
+                        <FaSpinner className="animate-spin mr-2" />
+                      ) : (
+                        <FaSave className="mr-2" />
+                      )}
+                      {saving ? 'Salvando...' : 'Salvar Alterações'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Display Bio */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Biografia</h4>
+                    <p className="text-gray-900 dark:text-white">
+                      {profile.bio || 'Nenhuma biografia adicionada ainda.'}
+                    </p>
+                  </div>
+
+                  {/* Display Location */}
+                  {profile.location && (
+                    <div className="flex items-center">
+                      <FaMapMarkerAlt className="text-gray-500 mr-2" />
+                      <span className="text-gray-900 dark:text-white">{profile.location}</span>
+                    </div>
+                  )}
+
+                  {/* Display Website */}
+                  {profile.website && (
+                    <div className="flex items-center">
+                      <FaGlobe className="text-gray-500 mr-2" />
+                      <a 
+                        href={profile.website} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:text-blue-600 hover:underline"
+                      >
+                        {profile.website}
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Display Social Links */}
+                  <div className="flex space-x-4">
+                    {profile.socialLinks?.twitter && (
+                      <a 
+                        href={`https://twitter.com/${profile.socialLinks.twitter}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-500"
+                      >
+                        <FaTwitter className="text-xl" />
+                      </a>
+                    )}
+                    {profile.socialLinks?.instagram && (
+                      <a 
+                        href={`https://instagram.com/${profile.socialLinks.instagram}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-pink-500 hover:text-pink-600"
+                      >
+                        <FaInstagram className="text-xl" />
+                      </a>
+                    )}
+                    {profile.socialLinks?.linkedin && (
+                      <a 
+                        href={`https://linkedin.com/in/${profile.socialLinks.linkedin}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-700"
+                      >
+                        <FaLinkedin className="text-xl" />
+                      </a>
+                    )}
+                    {profile.socialLinks?.github && (
+                      <a 
+                        href={`https://github.com/${profile.socialLinks.github}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                      >
+                        <FaGithub className="text-xl" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Security Section */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Segurança</h3>
+                <button
+                  onClick={() => setEditingPassword(!editingPassword)}
+                  className="flex items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
+                >
+                  <FaKey className="mr-2" />
+                  Alterar Senha
+                </button>
+              </div>
+
+              {editingPassword && (
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -281,14 +614,13 @@ export default function ProfilePage() {
                       <input
                         type={showPasswords.current ? 'text' : 'password'}
                         value={passwordData.currentPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                        className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        placeholder="Digite sua senha atual"
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                        className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
                       >
                         {showPasswords.current ? <FaEyeSlash /> : <FaEye />}
                       </button>
@@ -303,14 +635,13 @@ export default function ProfilePage() {
                       <input
                         type={showPasswords.new ? 'text' : 'password'}
                         value={passwordData.newPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                        className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        placeholder="Digite sua nova senha"
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                        className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
                       >
                         {showPasswords.new ? <FaEyeSlash /> : <FaEye />}
                       </button>
@@ -325,180 +656,44 @@ export default function ProfilePage() {
                       <input
                         type={showPasswords.confirm ? 'text' : 'password'}
                         value={passwordData.confirmPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                        className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        placeholder="Confirme sua nova senha"
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                        className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
                       >
                         {showPasswords.confirm ? <FaEyeSlash /> : <FaEye />}
                       </button>
                     </div>
                   </div>
 
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={handlePasswordChange}
-                      className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                    >
-                      <FaSave className="mr-2" />
-                      Salvar
-                    </button>
+                  <div className="flex justify-end space-x-3">
                     <button
                       onClick={() => {
                         setEditingPassword(false);
                         setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
                       }}
-                      className="flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <FaTimes className="mr-2" />
                       Cancelar
+                    </button>
+                    <button
+                      onClick={handlePasswordChange}
+                      disabled={saving}
+                      className="flex items-center px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {saving ? (
+                        <FaSpinner className="animate-spin mr-2" />
+                      ) : (
+                        <FaSave className="mr-2" />
+                      )}
+                      {saving ? 'Salvando...' : 'Alterar Senha'}
                     </button>
                   </div>
                 </div>
-              ) : (
-                <p className="text-gray-600 dark:text-gray-300">
-                  Mantenha sua conta segura alterando sua senha regularmente.
-                </p>
               )}
-            </div>
-
-            {/* Códigos de Convite */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-                <FaGift className="mr-2 text-blue-600" />
-                Códigos de Convite
-              </h2>
-              
-              {profile.inviteCodes.length > 0 ? (
-                <div className="space-y-3">
-                  {profile.inviteCodes.map((code, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                      <div>
-                        <p className="font-mono text-lg font-semibold text-gray-900 dark:text-white">
-                          {code}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                          Compartilhe este código para convidar novos usuários
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => copyInviteCode(code)}
-                        className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                      >
-                        <FaCopy className="mr-2" />
-                        Copiar
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-600 dark:text-gray-300">
-                  Você não possui códigos de convite no momento.
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Estatísticas */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Estatísticas
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">Saldo Atual</p>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    R$ {profile.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">Total Ganho</p>
-                  <p className="text-xl font-semibold text-blue-600 dark:text-blue-400">
-                    R$ {profile.totalEarnings.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Ranking */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-                  <FaTrophy className="mr-2 text-yellow-500" />
-                  Ranking
-                </h3>
-              </div>
-
-              <div className="mb-4">
-                <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <div className="flex items-center">
-                    {getRankingIcon(profile.rankingPosition)}
-                    <span className="ml-2 font-semibold text-gray-900 dark:text-white">
-                      #{profile.rankingPosition}
-                    </span>
-                  </div>
-                  <span className="text-sm text-gray-600 dark:text-gray-300">
-                    Sua posição
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2 mb-4">
-                {ranking.slice(0, 5).map((user, index) => (
-                  <div
-                    key={index}
-                    className={`flex items-center justify-between p-2 rounded ${
-                      user.isCurrentUser 
-                        ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' 
-                        : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <span className="w-6 text-center text-sm font-medium text-gray-600 dark:text-gray-300">
-                        {user.position}
-                      </span>
-                      <span className="ml-3 text-sm text-gray-900 dark:text-white">
-                        {user.username}
-                      </span>
-                    </div>
-                    <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                      R$ {user.totalEarnings.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-300">
-                    Aparecer no ranking público
-                  </span>
-                  <button
-                    onClick={toggleRankingVisibility}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      profile.showInRanking ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        profile.showInRanking ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  {profile.showInRanking 
-                    ? 'Seu nome aparece no ranking público' 
-                    : 'Você aparece como "Usuário desconhecido"'
-                  }
-                </p>
-              </div>
             </div>
           </div>
         </div>

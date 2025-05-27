@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
-// Interfaces
+// Definir interfaces para os documentos
 export interface IUser extends Document {
   username: string;
   email: string;
@@ -9,7 +9,7 @@ export interface IUser extends Document {
   banned: boolean;
   balance: number;
   inviteCode?: string;
-  invitedBy?: mongoose.Types.ObjectId;
+  invitedBy?: string;
   isVip: boolean;
   bannedBy?: mongoose.Types.ObjectId;
   bannedAt?: Date;
@@ -17,121 +17,55 @@ export interface IUser extends Document {
   totalEarnings: number;
   createdAt: Date;
   lastLogin?: Date;
-  isActive: boolean;
-  profile: {
-    avatar: string;
-    bio: string;
-    displayName: string;
-    location: string;
-    website: string;
-    socialLinks: {
-      telegram: string;
-      twitter: string;
-      instagram: string;
-    };
-    privacy: {
-      showEmail: boolean;
-      showBalance: boolean;
-      allowComments: boolean;
-      allowMessages: boolean;
-    };
-    stats: {
-      profileViews: number;
-      totalTransactions: number;
-      reputation: number;
-      badges: string[];
-    };
+  // Novos campos de perfil
+  profilePicture?: string;
+  bio?: string;
+  location?: string;
+  website?: string;
+  socialLinks?: {
+    twitter?: string;
+    instagram?: string;
+    linkedin?: string;
+    github?: string;
   };
-  settings: {
-    theme: string;
-    language: string;
-    notifications: {
-      email: boolean;
-      push: boolean;
-      payments: boolean;
-      comments: boolean;
-    };
-  };
-  updatedAt: Date;
-}
-
-export interface IProfileComment extends Document {
-  profileOwner: mongoose.Types.ObjectId;
-  author: mongoose.Types.ObjectId;
-  content: string;
-  isPublic: boolean;
-  likes: mongoose.Types.ObjectId[];
-  replies: Array<{
-    author: mongoose.Types.ObjectId;
-    content: string;
-    createdAt: Date;
-  }>;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface IFollow extends Document {
-  follower: mongoose.Types.ObjectId;
-  following: mongoose.Types.ObjectId;
-  createdAt: Date;
-}
-
-export interface INotification extends Document {
-  recipient: mongoose.Types.ObjectId;
-  sender?: mongoose.Types.ObjectId;
-  type: 'payment' | 'comment' | 'like' | 'follow' | 'system' | 'achievement';
-  title: string;
-  message: string;
-  data?: any;
-  isRead: boolean;
-  createdAt: Date;
-}
-
-export interface IPayment extends Document {
-  userId: mongoose.Types.ObjectId;
-  amount: number;
-  description: string;
-  pixCode: string;
-  qrCodeUrl?: string;
-  status: 'pending' | 'paid' | 'expired' | 'cancelled';
-  expiresAt: Date;
-  paidAt?: Date;
-  customerInfo: {
-    name?: string;
-    email?: string;
-    document?: string;
-  };
-  paymentMethod: string;
-  commission: number;
-  netAmount?: number;
-  externalId?: string;
-  webhookData?: any;
-  createdAt: Date;
-  updatedAt: Date;
+  profileViews: number;
+  isProfilePublic: boolean;
 }
 
 export interface IInviteCode extends Document {
   code: string;
   createdBy: mongoose.Types.ObjectId;
   usedBy?: mongoose.Types.ObjectId;
-  isUsed: boolean;
-  expiresAt?: Date;
-  maxUses: number;
-  currentUses: number;
+  used: boolean;
+  expiresAt: Date;
   createdAt: Date;
   usedAt?: Date;
 }
 
-export interface IWalletTransaction extends Document {
+export interface IPayment extends Document {
   userId: mongoose.Types.ObjectId;
-  type: 'deposit' | 'withdrawal' | 'payment' | 'commission' | 'bonus';
   amount: number;
   description: string;
-  status: 'pending' | 'completed' | 'failed' | 'cancelled';
-  relatedPayment?: mongoose.Types.ObjectId;
-  metadata?: any;
+  status: 'pending' | 'paid' | 'expired' | 'cancelled';
+  pixKey?: string;
+  pixCopiaECola?: string;
+  qrCodeImage?: string;
+  referenceCode?: string;
+  idempotentId?: string;
+  expiresAt: Date;
   createdAt: Date;
-  completedAt?: Date;
+  paidAt?: Date;
+}
+
+export interface IWalletTransaction extends Document {
+  userId: mongoose.Types.ObjectId;
+  type: 'credit' | 'debit';
+  amount: number;
+  description: string;
+  paymentId?: mongoose.Types.ObjectId;
+  balanceBefore: number;
+  balanceAfter: number;
+  createdAt: Date;
 }
 
 export interface ISystemConfig extends Document {
@@ -139,189 +73,322 @@ export interface ISystemConfig extends Document {
   value: string;
   description?: string;
   isEncrypted: boolean;
-  updatedBy?: mongoose.Types.ObjectId;
-  createdAt: Date;
+  updatedBy: mongoose.Types.ObjectId;
   updatedAt: Date;
+  createdAt: Date;
 }
 
-// Schemas
-const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ['user', 'moderator', 'admin'], default: 'user' },
-  banned: { type: Boolean, default: false },
-  balance: { type: Number, default: 0 },
-  inviteCode: { type: String },
-  invitedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  isVip: { type: Boolean, default: false },
-  bannedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  bannedAt: { type: Date },
-  banReason: { type: String },
-  totalEarnings: { type: Number, default: 0 },
-  createdAt: { type: Date, default: Date.now },
-  lastLogin: { type: Date },
-  isActive: { type: Boolean, default: true },
-  
-  profile: {
-    avatar: { type: String, default: '' },
-    bio: { type: String, default: '', maxlength: 500 },
-    displayName: { type: String, default: '' },
-    location: { type: String, default: '' },
-    website: { type: String, default: '' },
-    socialLinks: {
-      telegram: { type: String, default: '' },
-      twitter: { type: String, default: '' },
-      instagram: { type: String, default: '' }
-    },
-    privacy: {
-      showEmail: { type: Boolean, default: false },
-      showBalance: { type: Boolean, default: false },
-      allowComments: { type: Boolean, default: true },
-      allowMessages: { type: Boolean, default: true }
-    },
-    stats: {
-      profileViews: { type: Number, default: 0 },
-      totalTransactions: { type: Number, default: 0 },
-      reputation: { type: Number, default: 0 },
-      badges: [{ type: String }]
-    }
+export interface IProfileComment extends Document {
+  profileUserId: mongoose.Types.ObjectId;
+  authorId: mongoose.Types.ObjectId;
+  content: string;
+  createdAt: Date;
+  updatedAt?: Date;
+  isEdited: boolean;
+}
+
+// Definir esquemas
+const UserSchema = new Schema<IUser>({
+  username: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    minlength: 3,
+    maxlength: 30
   },
-  
-  settings: {
-    theme: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
-    language: { type: String, default: 'pt-BR' },
-    notifications: {
-      email: { type: Boolean, default: true },
-      push: { type: Boolean, default: true },
-      payments: { type: Boolean, default: true },
-      comments: { type: Boolean, default: true }
-    }
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    lowercase: true
   },
-  
-  updatedAt: { type: Date, default: Date.now }
-});
-
-const profileCommentSchema = new mongoose.Schema({
-  profileOwner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  content: { type: String, required: true, maxlength: 1000 },
-  isPublic: { type: Boolean, default: true },
-  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  replies: [{
-    author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    content: { type: String, maxlength: 500 },
-    createdAt: { type: Date, default: Date.now }
-  }],
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
-
-const followSchema = new mongoose.Schema({
-  follower: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  following: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  createdAt: { type: Date, default: Date.now }
-});
-
-const notificationSchema = new mongoose.Schema({
-  recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  type: { 
-    type: String, 
-    enum: ['payment', 'comment', 'like', 'follow', 'system', 'achievement'], 
-    required: true 
+  password: {
+    type: String,
+    required: true,
+    minlength: 6
   },
-  title: { type: String, required: true },
-  message: { type: String, required: true },
-  data: { type: mongoose.Schema.Types.Mixed },
-  isRead: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now }
-});
-
-const paymentSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  amount: { type: Number, required: true },
-  description: { type: String, required: true },
-  pixCode: { type: String, required: true },
-  qrCodeUrl: { type: String },
-  status: { type: String, enum: ['pending', 'paid', 'expired', 'cancelled'], default: 'pending' },
-  expiresAt: { type: Date, required: true },
-  paidAt: { type: Date },
-  customerInfo: {
-    name: { type: String },
-    email: { type: String },
-    document: { type: String }
+  role: {
+    type: String,
+    enum: ['user', 'moderator', 'admin'],
+    default: 'user'
   },
-  paymentMethod: { type: String, default: 'pix' },
-  commission: { type: Number, default: 0 },
-  netAmount: { type: Number },
-  externalId: { type: String },
-  webhookData: { type: mongoose.Schema.Types.Mixed },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
+  banned: {
+    type: Boolean,
+    default: false
+  },
+  balance: {
+    type: Number,
+    default: 0
+  },
+  inviteCode: {
+    type: String
+  },
+  invitedBy: {
+    type: String
+  },
+  isVip: {
+    type: Boolean,
+    default: false
+  },
+  bannedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  bannedAt: {
+    type: Date
+  },
+  banReason: {
+    type: String
+  },
+  totalEarnings: {
+    type: Number,
+    default: 0
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  lastLogin: {
+    type: Date
+  },
+  // Novos campos de perfil
+  profilePicture: {
+    type: String,
+    default: null
+  },
+  bio: {
+    type: String,
+    maxlength: 500,
+    default: ''
+  },
+  location: {
+    type: String,
+    maxlength: 100,
+    default: ''
+  },
+  website: {
+    type: String,
+    maxlength: 200,
+    default: ''
+  },
+  socialLinks: {
+    twitter: { type: String, default: '' },
+    instagram: { type: String, default: '' },
+    linkedin: { type: String, default: '' },
+    github: { type: String, default: '' }
+  },
+  profileViews: {
+    type: Number,
+    default: 0
+  },
+  isProfilePublic: {
+    type: Boolean,
+    default: true
+  }
 });
 
-const inviteCodeSchema = new mongoose.Schema({
-  code: { type: String, required: true, unique: true },
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  usedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  isUsed: { type: Boolean, default: false },
-  expiresAt: { type: Date },
-  maxUses: { type: Number, default: 1 },
-  currentUses: { type: Number, default: 0 },
-  createdAt: { type: Date, default: Date.now },
-  usedAt: { type: Date }
+const InviteCodeSchema = new Schema<IInviteCode>({
+  code: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  createdBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  usedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  used: {
+    type: Boolean,
+    default: false
+  },
+  expiresAt: {
+    type: Date,
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  usedAt: {
+    type: Date
+  }
 });
 
-const walletTransactionSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  type: { type: String, enum: ['deposit', 'withdrawal', 'payment', 'commission', 'bonus'], required: true },
-  amount: { type: Number, required: true },
-  description: { type: String, required: true },
-  status: { type: String, enum: ['pending', 'completed', 'failed', 'cancelled'], default: 'pending' },
-  relatedPayment: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' },
-  metadata: { type: mongoose.Schema.Types.Mixed },
-  createdAt: { type: Date, default: Date.now },
-  completedAt: { type: Date }
+const PaymentSchema = new Schema<IPayment>({
+  userId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  amount: {
+    type: Number,
+    required: true
+  },
+  description: {
+    type: String,
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'paid', 'expired', 'cancelled'],
+    default: 'pending'
+  },
+  pixKey: {
+    type: String
+  },
+  pixCopiaECola: {
+    type: String
+  },
+  qrCodeImage: {
+    type: String
+  },
+  referenceCode: {
+    type: String
+  },
+  idempotentId: {
+    type: String
+  },
+  expiresAt: {
+    type: Date,
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  paidAt: {
+    type: Date
+  }
 });
 
-const systemConfigSchema = new mongoose.Schema({
-  key: { type: String, required: true, unique: true },
-  value: { type: String, required: true },
-  description: { type: String },
-  isEncrypted: { type: Boolean, default: false },
-  updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
+const WalletTransactionSchema = new Schema<IWalletTransaction>({
+  userId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  type: {
+    type: String,
+    enum: ['credit', 'debit'],
+    required: true
+  },
+  amount: {
+    type: Number,
+    required: true
+  },
+  description: {
+    type: String,
+    required: true
+  },
+  paymentId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Payment'
+  },
+  balanceBefore: {
+    type: Number,
+    required: true
+  },
+  balanceAfter: {
+    type: Number,
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
-// Middleware para atualizar updatedAt
-userSchema.pre('save', function(next) {
-  this.updatedAt = new Date();
-  next();
+const SystemConfigSchema = new Schema<ISystemConfig>({
+  key: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
+  value: {
+    type: String,
+    required: true
+  },
+  description: {
+    type: String
+  },
+  isEncrypted: {
+    type: Boolean,
+    default: false
+  },
+  updatedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
-profileCommentSchema.pre('save', function(next) {
-  this.updatedAt = new Date();
-  next();
+const ProfileCommentSchema = new Schema<IProfileComment>({
+  profileUserId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  authorId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  content: {
+    type: String,
+    required: true,
+    maxlength: 1000,
+    trim: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date
+  },
+  isEdited: {
+    type: Boolean,
+    default: false
+  }
 });
 
-paymentSchema.pre('save', function(next) {
-  this.updatedAt = new Date();
-  next();
-});
+// Função auxiliar para lidar com os modelos no ambiente Next.js
+const getModel = <T extends Document>(
+  modelName: string,
+  schema: Schema
+): Model<T> => {
+  // Verificar se estamos em um ambiente que suporta globalThis (servidor)
+  if (typeof window === 'undefined') {
+    // Usar a API de modelos do mongoose para evitar redefinições
+    return mongoose.models[modelName] 
+      ? (mongoose.models[modelName] as Model<T>) 
+      : mongoose.model<T>(modelName, schema);
+  } else {
+    // No cliente, retornar um mock do modelo
+    return null as any;
+  }
+};
 
-systemConfigSchema.pre('save', function(next) {
-  this.updatedAt = new Date();
-  next();
-});
-
-// Exportar modelos
-export const User = mongoose.models.User || mongoose.model<IUser>('User', userSchema);
-export const ProfileComment = mongoose.models.ProfileComment || mongoose.model<IProfileComment>('ProfileComment', profileCommentSchema);
-export const Follow = mongoose.models.Follow || mongoose.model<IFollow>('Follow', followSchema);
-export const Notification = mongoose.models.Notification || mongoose.model<INotification>('Notification', notificationSchema);
-export const Payment = mongoose.models.Payment || mongoose.model<IPayment>('Payment', paymentSchema);
-export const InviteCode = mongoose.models.InviteCode || mongoose.model<IInviteCode>('InviteCode', inviteCodeSchema);
-export const WalletTransaction = mongoose.models.WalletTransaction || mongoose.model<IWalletTransaction>('WalletTransaction', walletTransactionSchema);
-export const SystemConfig = mongoose.models.SystemConfig || mongoose.model<ISystemConfig>('SystemConfig', systemConfigSchema); 
+// Exportar modelos usando a função auxiliar
+export const User = getModel<IUser>('User', UserSchema);
+export const InviteCode = getModel<IInviteCode>('InviteCode', InviteCodeSchema);
+export const Payment = getModel<IPayment>('Payment', PaymentSchema);
+export const WalletTransaction = getModel<IWalletTransaction>('WalletTransaction', WalletTransactionSchema);
+export const SystemConfig = getModel<ISystemConfig>('SystemConfig', SystemConfigSchema);
+export const ProfileComment = getModel<IProfileComment>('ProfileComment', ProfileCommentSchema); 
