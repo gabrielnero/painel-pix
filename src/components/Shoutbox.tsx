@@ -26,6 +26,11 @@ export default function Shoutbox() {
   useEffect(() => {
     fetchUserInfo();
     loadMessages();
+    
+    // Atualizar mensagens a cada 10 segundos
+    const interval = setInterval(loadMessages, 10000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

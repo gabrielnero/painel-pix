@@ -27,10 +27,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validar se é uma imagem base64 válida
-    if (!imageData.startsWith('data:image/')) {
+    // Validar se é uma imagem base64 válida e de tipo permitido
+    const allowedTypes = ['data:image/jpeg', 'data:image/jpg', 'data:image/png', 'data:image/webp'];
+    const isValidType = allowedTypes.some(type => imageData.startsWith(type));
+    
+    if (!isValidType) {
       return NextResponse.json(
-        { success: false, message: 'Formato de imagem inválido' },
+        { success: false, message: 'Tipo de arquivo não permitido. Use apenas JPEG, PNG ou WebP.' },
+        { status: 400 }
+      );
+    }
+    
+    // Verificar se não contém scripts ou código malicioso
+    if (imageData.includes('<script') || imageData.includes('javascript:') || imageData.includes('data:text/html')) {
+      return NextResponse.json(
+        { success: false, message: 'Arquivo contém conteúdo não permitido' },
         { status: 400 }
       );
     }
