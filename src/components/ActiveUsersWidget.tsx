@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { FaUser, FaCircle, FaCrown, FaEye } from 'react-icons/fa';
 
 interface ActiveUser {
+  _id: string;
   username: string;
   profilePicture?: string;
   role: 'user' | 'moderator' | 'admin';
@@ -16,50 +17,34 @@ interface ActiveUser {
 export default function ActiveUsersWidget() {
   const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [onlineCount, setOnlineCount] = useState(0);
 
   useEffect(() => {
-    // Simular usuários ativos para demonstração
-    const mockActiveUsers: ActiveUser[] = [
-      {
-        username: 'admin',
-        role: 'admin',
-        isVip: false,
-        lastSeen: new Date(),
-        isOnline: true
-      },
-      {
-        username: 'moderador1',
-        role: 'moderator',
-        isVip: true,
-        lastSeen: new Date(Date.now() - 2 * 60 * 1000),
-        isOnline: true
-      },
-      {
-        username: 'joao123',
-        role: 'user',
-        isVip: false,
-        lastSeen: new Date(Date.now() - 5 * 60 * 1000),
-        isOnline: true
-      },
-      {
-        username: 'maria_vip',
-        role: 'user',
-        isVip: true,
-        lastSeen: new Date(Date.now() - 10 * 60 * 1000),
-        isOnline: false
-      },
-      {
-        username: 'pedro_dev',
-        role: 'user',
-        isVip: false,
-        lastSeen: new Date(Date.now() - 15 * 60 * 1000),
-        isOnline: false
-      }
-    ];
-
-    setActiveUsers(mockActiveUsers);
-    setLoading(false);
+    fetchActiveUsers();
+    
+    // Atualizar a cada 30 segundos
+    const interval = setInterval(fetchActiveUsers, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
+
+  const fetchActiveUsers = async () => {
+    try {
+      const response = await fetch('/api/users/active?limit=10');
+      const data = await response.json();
+      
+      if (data.success) {
+        setActiveUsers(data.users);
+        setOnlineCount(data.onlineCount);
+      } else {
+        console.error('Erro ao carregar usuários ativos:', data.message);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar usuários ativos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -72,9 +57,10 @@ export default function ActiveUsersWidget() {
     }
   };
 
-  const formatLastSeen = (date: Date) => {
+  const formatLastSeen = (date: Date | string) => {
+    const lastSeenDate = new Date(date);
     const now = new Date();
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    const diffInMinutes = Math.floor((now.getTime() - lastSeenDate.getTime()) / (1000 * 60));
 
     if (diffInMinutes < 1) return 'agora mesmo';
     if (diffInMinutes < 60) return `${diffInMinutes}m atrás`;
@@ -119,7 +105,7 @@ export default function ActiveUsersWidget() {
         <div className="flex items-center space-x-2">
           <FaCircle className="text-green-500 h-2 w-2" />
           <span className="text-sm text-gray-600 dark:text-gray-400">
-            {onlineUsers.length} online
+            {onlineCount} online
           </span>
         </div>
       </div>
@@ -128,7 +114,7 @@ export default function ActiveUsersWidget() {
         {/* Online Users */}
         {onlineUsers.map((user) => (
           <Link
-            key={`online-${user.username}`}
+            key={`online-${user._id}`}
             href={`/profile/${user.username}`}
             className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
           >
@@ -175,7 +161,7 @@ export default function ActiveUsersWidget() {
         {/* Recently Active Users */}
         {recentUsers.slice(0, 3).map((user) => (
           <Link
-            key={`recent-${user.username}`}
+            key={`recent-${user._id}`}
             href={`/profile/${user.username}`}
             className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
           >

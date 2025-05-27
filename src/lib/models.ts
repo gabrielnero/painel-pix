@@ -87,6 +87,15 @@ export interface IProfileComment extends Document {
   isEdited: boolean;
 }
 
+export interface IShoutboxMessage extends Document {
+  userId: mongoose.Types.ObjectId;
+  username: string;
+  message: string;
+  role: 'user' | 'moderator' | 'admin';
+  profilePicture?: string;
+  createdAt: Date;
+}
+
 // Definir esquemas
 const UserSchema = new Schema<IUser>({
   username: {
@@ -368,6 +377,38 @@ const ProfileCommentSchema = new Schema<IProfileComment>({
   }
 });
 
+const ShoutboxMessageSchema = new Schema<IShoutboxMessage>({
+  userId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  username: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  message: {
+    type: String,
+    required: true,
+    maxlength: 500,
+    trim: true
+  },
+  role: {
+    type: String,
+    enum: ['user', 'moderator', 'admin'],
+    required: true
+  },
+  profilePicture: {
+    type: String,
+    default: null
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
 // Função auxiliar para lidar com os modelos no ambiente Next.js
 const getModel = <T extends Document>(
   modelName: string,
@@ -391,4 +432,5 @@ export const InviteCode = getModel<IInviteCode>('InviteCode', InviteCodeSchema);
 export const Payment = getModel<IPayment>('Payment', PaymentSchema);
 export const WalletTransaction = getModel<IWalletTransaction>('WalletTransaction', WalletTransactionSchema);
 export const SystemConfig = getModel<ISystemConfig>('SystemConfig', SystemConfigSchema);
-export const ProfileComment = getModel<IProfileComment>('ProfileComment', ProfileCommentSchema); 
+export const ProfileComment = getModel<IProfileComment>('ProfileComment', ProfileCommentSchema);
+export const ShoutboxMessage = getModel<IShoutboxMessage>('ShoutboxMessage', ShoutboxMessageSchema); 

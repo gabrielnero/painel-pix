@@ -2,38 +2,28 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { FaPaperPlane, FaComments, FaUser } from 'react-icons/fa';
+import { toast } from 'react-hot-toast';
 
 interface Message {
-  id: string;
+  _id: string;
+  userId: string;
   username: string;
   message: string;
-  timestamp: Date;
+  timestamp?: Date;
+  createdAt: Date;
   role: 'user' | 'moderator' | 'admin';
+  profilePicture?: string;
 }
 
 export default function Shoutbox() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [userInfo, setUserInfo] = useState({ username: '', role: 'user' });
+  const [userInfo, setUserInfo] = useState({ username: '', role: 'user', profilePicture: '' });
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Buscar informações do usuário
-    const fetchUserInfo = async () => {
-      try {
-        const response = await fetch('/api/auth/check');
-        const data = await response.json();
-        if (data.success && data.user) {
-          setUserInfo({
-            username: data.user.username,
-            role: data.user.role
-          });
-        }
-      } catch (error) {
-        console.error('Erro ao buscar informações do usuário:', error);
-      }
-    };
-
     fetchUserInfo();
     loadMessages();
   }, []);
@@ -46,65 +36,69 @@ export default function Shoutbox() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const loadMessages = () => {
-    // Por enquanto, usar mensagens mock
-    // Em produção, isso seria uma API real com WebSocket
-    const mockMessages: Message[] = [
-      {
-        id: '1',
-        username: 'admin',
-        message: 'Bem-vindos ao fórum da plataforma! 🎉',
-        timestamp: new Date(Date.now() - 300000),
-        role: 'admin'
-      },
-      {
-        id: '2',
-        username: 'usuario1',
-        message: 'Olá pessoal! Como funciona o sistema de PIX?',
-        timestamp: new Date(Date.now() - 240000),
-        role: 'user'
-      },
-      {
-        id: '3',
-        username: 'moderador',
-        message: 'É bem simples! Vá em "Gerar PIX" e siga as instruções. Qualquer dúvida, estamos aqui para ajudar!',
-        timestamp: new Date(Date.now() - 180000),
-        role: 'moderator'
-      },
-      {
-        id: '4',
-        username: 'usuario2',
-        message: 'Acabei de fazer meu primeiro PIX! Muito fácil mesmo 👍',
-        timestamp: new Date(Date.now() - 120000),
-        role: 'user'
-      },
-      {
-        id: '5',
-        username: 'admin',
-        message: 'Ótimo! Lembrem-se de sempre verificar os dados antes de confirmar o pagamento.',
-        timestamp: new Date(Date.now() - 60000),
-        role: 'admin'
+  const fetchUserInfo = async () => {
+    try {
+      const response = await fetch('/api/auth/check');
+      const data = await response.json();
+      if (data.success && data.user) {
+        setUserInfo({
+          username: data.user.username,
+          role: data.user.role,
+          profilePicture: data.user.profilePicture || ''
+        });
       }
-    ];
-    setMessages(mockMessages);
+    } catch (error) {
+      console.error('Erro ao buscar informações do usuário:', error);
+    }
   };
 
-  const sendMessage = () => {
-    if (!newMessage.trim() || !userInfo.username) return;
+  const loadMessages = async () => {
+    try {
+      const response = await fetch('/api/shoutbox?limit=50');
+      const data = await response.json();
+      
+      if (data.success) {
+        setMessages(data.messages);
+      } else {
+        console.error('Erro ao carregar mensagens:', data.message);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar mensagens:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const message: Message = {
-      id: Date.now().toString(),
-      username: userInfo.username,
-      message: newMessage.trim(),
-      timestamp: new Date(),
-      role: userInfo.role as 'user' | 'moderator' | 'admin'
-    };
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !userInfo.username || sending) return;
 
-    setMessages(prev => [...prev, message]);
-    setNewMessage('');
+    setSending(true);
 
-    // Em produção, enviar para API/WebSocket
-    // await fetch('/api/shoutbox/send', { method: 'POST', body: JSON.stringify(message) });
+    try {
+      const response = await fetch('/api/shoutbox', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: newMessage.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Adicionar a nova mensagem à lista
+        setMessages(prev => [...prev, data.message]);
+        setNewMessage('');
+        toast.success('Mensagem enviada!');
+      } else {
+        toast.error(data.message || 'Erro ao enviar mensagem');
+      }
+    } catch (error) {
+      toast.error('Erro ao enviar mensagem');
+      console.error('Erro ao enviar mensagem:', error);
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -136,14 +130,15 @@ export default function Shoutbox() {
     }
   };
 
-  const formatTime = (timestamp: Date) => {
-    return timestamp.toLocaleTimeString('pt-BR', { 
+  const formatTime = (timestamp: Date | string) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('pt-BR', { 
       hour: '2-digit', 
       minute: '2-digit' 
     });
   };
 
-  const formatDate = (timestamp: Date) => {
+  const formatDate = (timestamp: Date | string) => {
     const today = new Date();
     const messageDate = new Date(timestamp);
     
@@ -184,50 +179,85 @@ export default function Shoutbox() {
       {/* Messages */}
       <div className="p-6">
         <div className="h-80 overflow-y-auto bg-gray-50 dark:bg-gray-900 rounded-lg p-4 mb-4">
-          <div className="space-y-4">
-            {messages.map((message) => (
-              <div key={message.id} className="flex items-start space-x-3">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <FaUser className="h-5 w-5 text-white" />
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+          ) : messages.length > 0 ? (
+            <div className="space-y-4">
+              {messages.map((message) => (
+                <div key={message._id} className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+                      {message.profilePicture ? (
+                        <img 
+                          src={message.profilePicture} 
+                          alt={message.username}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                          <FaUser className="h-5 w-5 text-white" />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <span className={`font-semibold text-sm ${getRoleColor(message.role)}`}>
-                      {message.username}
-                    </span>
-                    {getRoleBadge(message.role) && (
-                      <span className={`px-2 py-1 text-xs font-bold rounded-full ${
-                        message.role === 'admin' 
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                          : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                      }`}>
-                        {getRoleBadge(message.role)}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <span className={`font-semibold text-sm ${getRoleColor(message.role)}`}>
+                        {message.username}
                       </span>
-                    )}
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {formatDate(message.timestamp)} às {formatTime(message.timestamp)}
-                    </span>
-                  </div>
-                  <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700">
-                    <p className="text-sm text-gray-700 dark:text-gray-300 break-words leading-relaxed">
-                      {message.message}
-                    </p>
+                      {getRoleBadge(message.role) && (
+                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${
+                          message.role === 'admin' 
+                            ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                            : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                        }`}>
+                          {getRoleBadge(message.role)}
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {formatDate(message.createdAt)} às {formatTime(message.createdAt)}
+                      </span>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700">
+                      <p className="text-sm text-gray-700 dark:text-gray-300 break-words leading-relaxed">
+                        {message.message}
+                      </p>
+                    </div>
                   </div>
                 </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <FaComments className="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
+                <p className="text-gray-500 dark:text-gray-400">
+                  Nenhuma mensagem ainda. Seja o primeiro a conversar!
+                </p>
               </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Input */}
-        <div className="space-y-3">
+        {userInfo.username ? (
           <div className="flex space-x-3">
             <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center">
-                <FaUser className="h-5 w-5 text-white" />
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+                {userInfo.profilePicture ? (
+                  <img 
+                    src={userInfo.profilePicture} 
+                    alt={userInfo.username}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center">
+                    <FaUser className="h-5 w-5 text-white" />
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex-1">
@@ -235,9 +265,9 @@ export default function Shoutbox() {
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder={userInfo.username ? `Escreva uma mensagem, ${userInfo.username}...` : "Faça login para participar do fórum..."}
-                disabled={!userInfo.username}
-                className="w-full px-4 py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                placeholder={`Escreva uma mensagem, ${userInfo.username}...`}
+                disabled={sending}
+                className="w-full px-4 py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none disabled:opacity-50"
                 rows={3}
                 maxLength={500}
               />
@@ -247,24 +277,22 @@ export default function Shoutbox() {
                 </span>
                 <button
                   onClick={sendMessage}
-                  disabled={!newMessage.trim() || !userInfo.username}
+                  disabled={!newMessage.trim() || sending}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center space-x-2"
                 >
                   <FaPaperPlane className="h-4 w-4" />
-                  <span>Enviar</span>
+                  <span>{sending ? 'Enviando...' : 'Enviar'}</span>
                 </button>
               </div>
             </div>
           </div>
-          
-          {!userInfo.username && (
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-              <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                <strong>Faça login</strong> para participar das discussões do fórum.
-              </p>
-            </div>
-          )}
-        </div>
+        ) : (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              <strong>Faça login</strong> para participar das discussões do fórum.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

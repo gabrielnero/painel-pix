@@ -39,7 +39,8 @@ export async function GET(request: NextRequest) {
           id: 'local-admin-id',
           username: 'admin',
           email: 'admin@painel.com',
-          role: 'admin'
+          role: 'admin',
+          profilePicture: null
         },
         devMode: true
       });
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
     
-    const user = await User.findById(decoded.userId);
+    const user = await User.findById(decoded.userId).select('username email role profilePicture');
 
     if (!user) {
       return NextResponse.json({
@@ -70,6 +71,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Atualizar lastLogin
+    await User.findByIdAndUpdate(decoded.userId, { lastLogin: new Date() });
+
     return NextResponse.json({
       success: true,
       authenticated: true,
@@ -77,7 +81,8 @@ export async function GET(request: NextRequest) {
         id: user._id,
         username: user.username,
         email: user.email,
-        role: user.role
+        role: user.role,
+        profilePicture: user.profilePicture
       }
     });
   } catch (error) {
