@@ -103,7 +103,7 @@ export default function Login() {
 
       // Todos os usuários vão para o dashboard, incluindo admins
       setTimeout(() => {
-        router.push('/dashboard');
+        window.location.href = '/dashboard';
       }, 1500);
 
     } catch (err) {

@@ -61,9 +61,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Gerar PIX usando a API da PrimePag primeiro
+    let primepagResponse;
     try {
-      await connectToDatabase();
-
       // Validar configurações do sistema antes de gerar PIX
       const configValidation = await validatePixConfig();
       if (!configValidation.valid) {
@@ -74,8 +74,7 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
       }
 
-      // Gerar PIX usando a API da PrimePag
-      const primepagResponse = await primepagService.generatePixQRCode({
+      primepagResponse = await primepagService.generatePixQRCode({
         value_cents: Math.round(amount * 100), // Converter para centavos
         generator_name: customer?.name || 'Cliente',
         generator_document: customer?.document || '12345678901',
@@ -84,6 +83,18 @@ export async function POST(request: NextRequest) {
       });
 
       console.log('PIX gerado via PrimePag:', primepagResponse);
+    } catch (primepagError) {
+      console.error('Erro ao gerar PIX na PrimePag:', primepagError);
+      return NextResponse.json({
+        success: false,
+        message: 'Erro ao gerar PIX na PrimePag',
+        error: primepagError instanceof Error ? primepagError.message : String(primepagError)
+      }, { status: 500 });
+    }
+
+    // Tentar salvar no banco de dados
+    try {
+      await connectToDatabase();
 
       // Data de expiração
       const expirationDate = new Date(Date.now() + ((expiresIn || 1800) * 1000));
@@ -119,12 +130,28 @@ export async function POST(request: NextRequest) {
       });
 
     } catch (dbError) {
-      console.error('Erro ao salvar pagamento:', dbError);
+      console.error('Erro detalhado ao salvar pagamento:', {
+        error: dbError,
+        message: dbError instanceof Error ? dbError.message : String(dbError),
+        stack: dbError instanceof Error ? dbError.stack : undefined
+      });
+      
+      // Se falhar ao salvar no banco, ainda retornar o PIX gerado
       return NextResponse.json({
-        success: false,
-        message: 'Erro ao salvar pagamento no banco de dados',
-        error: dbError instanceof Error ? dbError.message : String(dbError)
-      }, { status: 500 });
+        success: true,
+        payment: {
+          id: 'temp_' + Date.now(),
+          amount: amount,
+          status: 'pending',
+          pixCopiaECola: primepagResponse.qrcode.content,
+          qrCodeImage: primepagResponse.qrcode.image_base64 || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(primepagResponse.qrcode.content)}`,
+          expiresAt: new Date(Date.now() + ((expiresIn || 1800) * 1000)).toISOString(),
+          referenceCode: primepagResponse.qrcode.reference_code,
+          customer: customer,
+          metadata: metadata
+        },
+        warning: 'PIX gerado com sucesso, mas houve problema ao salvar no banco de dados'
+      });
     }
   } catch (error) {
     console.error('Erro ao gerar PIX:', error);
