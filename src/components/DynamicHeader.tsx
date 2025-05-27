@@ -3,9 +3,13 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { FaCrown } from 'react-icons/fa';
+import UserInfo from './UserInfo';
+import NotificationCenter from './NotificationCenter';
+import ThemeToggle from './ThemeToggle';
 
 export default function DynamicHeader() {
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,6 +20,7 @@ export default function DynamicHeader() {
         
         if (data.success && data.user) {
           setUserRole(data.user.role);
+          setIsAuthenticated(true);
         }
       } catch (error) {
         console.error('Erro ao verificar papel do usuário:', error);
@@ -34,19 +39,31 @@ export default function DynamicHeader() {
           <Link href="/dashboard" className="inline-block group">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white hover:text-green-500 dark:hover:text-green-400 transition-colors cursor-pointer font-mono">
               t0p<span className="text-green-500 dark:text-green-400">.1</span>
+              <span className="text-blue-500 dark:text-blue-400 ml-1">X Receiver</span>
               <span className="text-green-500 dark:text-green-400 opacity-0 group-hover:opacity-100 transition-opacity">.sh</span>
             </h1>
           </Link>
           
-          {!loading && userRole === 'admin' && (
-            <Link 
-              href="/admin" 
-              className="flex items-center px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg font-mono text-sm"
-            >
-              <FaCrown className="mr-2" />
-              PAINEL ADMINISTRADOR
-            </Link>
-          )}
+          <div className="flex items-center space-x-4">
+            {isAuthenticated && (
+              <>
+                <NotificationCenter />
+                <UserInfo />
+              </>
+            )}
+            
+            <ThemeToggle />
+            
+            {!loading && userRole === 'admin' && (
+              <Link 
+                href="/admin" 
+                className="flex items-center px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg font-mono text-sm"
+              >
+                <FaCrown className="mr-2" />
+                ADMIN
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </header>

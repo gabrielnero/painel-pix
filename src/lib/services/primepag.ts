@@ -4,8 +4,8 @@ import crypto from 'crypto';
 
 // Configurações da API PrimePag - USAR VARIÁVEIS DE AMBIENTE EM PRODUÇÃO
 const BASE_URL = 'https://api.primepag.com.br';
-const CLIENT_ID = process.env.PRIMEPAG_CLIENT_ID || '9a692e2a-205e-4880-b49b-aa862096bbeb';
-const CLIENT_SECRET = process.env.PRIMEPAG_CLIENT_SECRET || 'b2c2a2b5-96ac-4c14-83fb-f3474501a84f';
+const CLIENT_ID = process.env.PRIMEPAG_CLIENT_ID || 'marciojunior9482_9302272031';
+const CLIENT_SECRET = process.env.PRIMEPAG_CLIENT_SECRET || '1d19ccec30031b119bfc731b56eda0d3e5575116a7846058560cd20cad7c614f';
 
 // Types and Interfaces
 interface PrimepagAuthResponse {
@@ -84,12 +84,12 @@ class PrimepagService {
         grant_type: 'client_credentials'
       };
 
-      // Use the exact Basic Auth provided by the user
-      const providedBasicAuth = 'OWE2OTJlMmEtMjA1ZS00ODgwLWI0OWItYWE4NjIwOTZiYmViOmIyYzJhMmI1LTk2YWMtNGMxNC04M2ZiLWYzNDc0NTAxYTg0Zg==';
+      // Gerar Basic Auth com as novas credenciais
+      const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64');
       
       requestConfig.headers = {
         ...requestConfig.headers,
-        'Authorization': `Basic ${providedBasicAuth}`
+        'Authorization': `Basic ${credentials}`
       };
 
       const response = await axios.post<PrimepagAuthResponse>(

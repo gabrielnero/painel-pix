@@ -32,46 +32,29 @@ export default function NotificationCenter() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    // Simular notificações para demonstração
-    const mockNotifications: Notification[] = [
-      {
-        id: '1',
-        type: 'comment',
-        title: 'Novo comentário',
-        message: 'João comentou no seu perfil',
-        timestamp: new Date(Date.now() - 5 * 60 * 1000),
-        read: false,
-        actionUrl: '/profile/joao'
-      },
-      {
-        id: '2',
-        type: 'payment',
-        title: 'Pagamento recebido',
-        message: 'Você recebeu R$ 25,00',
-        timestamp: new Date(Date.now() - 15 * 60 * 1000),
-        read: false
-      },
-      {
-        id: '3',
-        type: 'badge',
-        title: 'Nova conquista!',
-        message: 'Você desbloqueou o badge "Veterano"',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        read: true
-      },
-      {
-        id: '4',
-        type: 'system',
-        title: 'Manutenção programada',
-        message: 'Sistema será atualizado amanhã às 02:00',
-        timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-        read: false
-      }
-    ];
-
-    setNotifications(mockNotifications);
-    setUnreadCount(mockNotifications.filter(n => !n.read).length);
+    fetchNotifications();
+    
+    // Atualizar notificações a cada 30 segundos
+    const interval = setInterval(fetchNotifications, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch('/api/user/notifications');
+      const data = await response.json();
+      
+      if (data.success) {
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.notifications?.filter((n: Notification) => !n.read).length || 0);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar notificações:', error);
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  };
 
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {

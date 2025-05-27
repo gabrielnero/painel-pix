@@ -8,8 +8,8 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 't0p.1',
-  description: 'Painel de controle para gerenciamento de pagamentos PIX',
+  title: 't0p.1 X Receiver',
+  description: 'Sistema de pagamentos PIX - t0p.1 X Receiver',
 };
 
 export default function RootLayout({
@@ -28,7 +28,7 @@ export default function RootLayout({
             </main>
             <footer className="border-t border-gray-200 dark:border-gray-700 py-4 bg-white dark:bg-gray-800">
               <div className="container mx-auto px-4 text-center text-sm text-gray-600 dark:text-gray-400">
-                <p className="font-mono">&copy; {new Date().getFullYear()} t0p.1.sh | Advanced Payment Terminal</p>
+                <p className="font-mono">&copy; {new Date().getFullYear()} t0p.1 X Receiver | Advanced Payment Terminal</p>
               </div>
             </footer>
           </div>

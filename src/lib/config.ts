@@ -35,12 +35,12 @@ function decrypt(text: string): string {
 export const DEFAULT_CONFIGS = {
   // Configurações PrimePag
   'primepag.client_id': {
-    value: '26d7741e-83d5-4ca7-a6c0-0c416d046bc2',
+    value: 'marciojunior9482_9302272031',
     description: 'Client ID da PrimePag',
     isEncrypted: true
   },
   'primepag.client_secret': {
-    value: '8517fb27-263a-4954-ba74-a8ef57583792',
+    value: '1d19ccec30031b119bfc731b56eda0d3e5575116a7846058560cd20cad7c614f',
     description: 'Client Secret da PrimePag',
     isEncrypted: true
   },
