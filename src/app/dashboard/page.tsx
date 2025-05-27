@@ -18,11 +18,6 @@ import {
   FaSpinner,
   FaExclamationTriangle
 } from 'react-icons/fa';
-import NotificationSystem from '@/components/NotificationSystem';
-import ThemeToggle from '@/components/ThemeToggle';
-import AnnouncementBanner from '@/components/AnnouncementBanner';
-import Shoutbox from '@/components/Shoutbox';
-import WalletBalance from '@/components/WalletBalance';
 
 export default function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -232,19 +227,15 @@ export default function Dashboard() {
               <div className="text-sm text-gray-500 dark:text-gray-400">
                 {currentTime.toLocaleString('pt-BR')}
               </div>
-              <WalletBalance />
-              <NotificationSystem />
-              <ThemeToggle />
+              {/* Saldo simplificado */}
+              <div className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg">
+                <FaMoneyBillWave className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  R$ {userBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* Announcement Banner */}
-        <AnnouncementBanner />
-
-        {/* Shoutbox */}
-        <div className="mb-8">
-          <Shoutbox />
         </div>
 
         {/* Stats Cards */}
