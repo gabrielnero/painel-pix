@@ -42,6 +42,7 @@ export default function WebhookDebugPage() {
   const [testLoading, setTestLoading] = useState(false);
   const [authTestLoading, setAuthTestLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
+  const [authResults, setAuthResults] = useState<any>(null);
 
   const checkWebhookStatus = async () => {
     try {
@@ -51,6 +52,7 @@ export default function WebhookDebugPage() {
       
       if (data.success) {
         setResults(data);
+        setStatus(data);
         toast.success('Status do webhook verificado');
       } else {
         toast.error(data.message || 'Erro ao verificar webhook');
@@ -71,7 +73,8 @@ export default function WebhookDebugPage() {
       
       if (data.success) {
         console.log('Resultado do teste de autenticação:', data);
-        toast.success('Teste de autenticação concluído - veja o console');
+        setAuthResults(data);
+        toast.success('Teste de autenticação concluído');
         
         // Mostrar resultados específicos
         data.results.forEach((result: any) => {
@@ -220,6 +223,9 @@ export default function WebhookDebugPage() {
         {/* Detalhes por Conta */}
         {status && (
           <div className="space-y-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              📋 Resultados do Teste de Webhook
+            </h2>
             {status.results.map((result) => (
               <div key={result.account} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
                 <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -290,6 +296,110 @@ export default function WebhookDebugPage() {
                       </p>
                     </div>
                   )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Resultados do Teste de Autenticação */}
+        {authResults && (
+          <div className="space-y-6 mt-8">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              🔐 Resultados do Teste de Autenticação
+            </h2>
+            {authResults.results.map((result: any) => (
+              <div key={`auth-${result.account}`} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      Conta {result.account} - Autenticação
+                    </h3>
+                    <div className="flex items-center space-x-2">
+                      {result.success ? (
+                        <FaCheckCircle className="text-green-500" />
+                      ) : (
+                        <FaTimesCircle className="text-red-500" />
+                      )}
+                      <span className={`px-3 py-1 text-sm font-medium rounded-full ${
+                        result.success 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      }`}>
+                        {result.success ? 'Sucesso' : 'Erro'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Mensagem:
+                      </h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {result.message}
+                      </p>
+                    </div>
+
+                    {result.success && result.auth && (
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Detalhes da Autenticação:
+                        </h4>
+                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                          <pre className="text-sm text-green-800 dark:text-green-200 whitespace-pre-wrap">
+                            {JSON.stringify(result.auth, null, 2)}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
+
+                    {result.apiTest && (
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Teste de API:
+                        </h4>
+                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                          <pre className="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-wrap">
+                            {JSON.stringify(result.apiTest, null, 2)}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
+
+                    {result.apiError && (
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Erro na API:
+                        </h4>
+                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                          <pre className="text-sm text-red-800 dark:text-red-200 whitespace-pre-wrap">
+                            {JSON.stringify(result.apiError, null, 2)}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
+
+                    {!result.success && result.error && (
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Erro:
+                        </h4>
+                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                          <p className="text-sm text-red-800 dark:text-red-200">
+                            {result.error}
+                          </p>
+                          {result.errorDetails && (
+                            <pre className="text-sm text-red-700 dark:text-red-300 mt-2 whitespace-pre-wrap">
+                              {JSON.stringify(result.errorDetails, null, 2)}
+                            </pre>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
