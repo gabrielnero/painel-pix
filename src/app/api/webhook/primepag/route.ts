@@ -3,8 +3,28 @@ import crypto from 'crypto';
 import { connectToDatabase } from '@/lib/db';
 import { User, Payment, WalletTransaction } from '@/lib/models';
 
-interface WebhookMessage {
-  notification_type: string;
+// Interface para Notificação de QRCode (quando QRCode é pago)
+interface QRCodeWebhookMessage {
+  notification_type: 'pix_qrcode' | 'pix_static_qrcode';
+  message: {
+    reference_code: string;
+    value_cents: number;
+    content: string;
+    status: 'error' | 'awaiting_payment' | 'paid' | 'canceled';
+    generator_name: string;
+    generator_document: string;
+    payer_name?: string;
+    payer_document?: string;
+    registration_date: string;
+    payment_date?: string;
+    end_to_end?: string;
+  };
+  md5: string;
+}
+
+// Interface para Notificação de Pagamento (alterações de status)
+interface PaymentWebhookMessage {
+  notification_type: 'pix_payment';
   message: {
     value_cents: number;
     reference_code: string;
@@ -24,6 +44,8 @@ interface WebhookMessage {
   md5: string;
 }
 
+type WebhookMessage = QRCodeWebhookMessage | PaymentWebhookMessage;
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as WebhookMessage;
@@ -39,22 +61,31 @@ export async function POST(request: NextRequest) {
       return new NextResponse('Bad Request', { status: 400 });
     }
 
-    // Verificar se é uma notificação de pagamento PIX
-    if (notification_type !== 'pix_payment') {
-      console.log(`ℹ️ Webhook: Tipo de notificação ${notification_type} ignorado (esperado: pix_payment)`);
-      return new NextResponse('OK', { status: 200 });
-    }
-
-    // Verificar assinatura do webhook conforme documentação PrimePag
+    // Verificar secret key
     const secretKey = process.env.PRIMEPAG_SECRET_KEY;
     if (!secretKey) {
       console.error('❌ Webhook: PRIMEPAG_SECRET_KEY não configurada');
       return new NextResponse('Internal Server Error', { status: 500 });
     }
 
-    // Hash MD5 conforme documentação: payment.{reference_code}.{idempotent_id}.{value_cents}.{secret_key}
-    const signatureString = `payment.${message.reference_code}.${message.idempotent_id}.${message.value_cents}.${secretKey}`;
-    const expectedSignature = crypto
+    // Verificar assinatura MD5 baseada no tipo de notificação
+    let signatureString: string;
+    let expectedSignature: string;
+
+    if (notification_type === 'pix_qrcode' || notification_type === 'pix_static_qrcode') {
+      // Para QRCode: qrcode.{reference_code}.{end_to_end}.{value_cents}.{secret_key}
+      const qrMessage = message as QRCodeWebhookMessage['message'];
+      signatureString = `qrcode.${qrMessage.reference_code}.${qrMessage.end_to_end || ''}.${qrMessage.value_cents}.${secretKey}`;
+    } else if (notification_type === 'pix_payment') {
+      // Para Payment: payment.{reference_code}.{idempotent_id}.{value_cents}.{secret_key}
+      const payMessage = message as PaymentWebhookMessage['message'];
+      signatureString = `payment.${payMessage.reference_code}.${payMessage.idempotent_id}.${payMessage.value_cents}.${secretKey}`;
+    } else {
+      console.log(`ℹ️ Webhook: Tipo de notificação ${notification_type} não suportado`);
+      return new NextResponse('OK', { status: 200 });
+    }
+
+    expectedSignature = crypto
       .createHash('md5')
       .update(signatureString)
       .digest('hex');
@@ -76,6 +107,7 @@ export async function POST(request: NextRequest) {
     console.log('📊 Processando webhook...');
     await connectToDatabase();
 
+    // Buscar pagamento pelo reference_code
     const payment = await Payment.findOne({ referenceCode: message.reference_code });
     if (!payment) {
       console.error(`❌ Webhook: Pagamento não encontrado no banco de dados - Reference Code: ${message.reference_code}`);
@@ -91,22 +123,48 @@ export async function POST(request: NextRequest) {
       description: payment.description
     });
 
-    // Mapear status da PrimePag para nosso sistema
-    const statusMapping: { [key: string]: 'pending' | 'paid' | 'expired' | 'cancelled' | 'awaiting_payment' } = {
-      'pending': 'pending',
-      'awaiting_payment': 'awaiting_payment',
-      'paid': 'paid',
-      'completed': 'paid',
-      'expired': 'expired',
-      'cancelled': 'cancelled'
-    };
+    // Mapear status baseado no tipo de notificação
+    let normalizedStatus: 'pending' | 'paid' | 'expired' | 'cancelled' | 'awaiting_payment';
+    let paymentDate: string | undefined;
 
-    const normalizedStatus = statusMapping[message.status] || 'pending';
+    if (notification_type === 'pix_qrcode' || notification_type === 'pix_static_qrcode') {
+      const qrMessage = message as QRCodeWebhookMessage['message'];
+      
+      // Mapeamento para QRCode
+      const qrStatusMapping: { [key: string]: 'pending' | 'paid' | 'expired' | 'cancelled' | 'awaiting_payment' } = {
+        'error': 'cancelled',
+        'awaiting_payment': 'awaiting_payment',
+        'paid': 'paid',
+        'canceled': 'cancelled'
+      };
+      
+      normalizedStatus = qrStatusMapping[qrMessage.status] || 'pending';
+      paymentDate = qrMessage.payment_date;
+      
+    } else if (notification_type === 'pix_payment') {
+      const payMessage = message as PaymentWebhookMessage['message'];
+      
+      // Mapeamento para Payment
+      const payStatusMapping: { [key: string]: 'pending' | 'paid' | 'expired' | 'cancelled' | 'awaiting_payment' } = {
+        'pending': 'pending',
+        'awaiting_payment': 'awaiting_payment',
+        'paid': 'paid',
+        'completed': 'paid',
+        'expired': 'expired',
+        'cancelled': 'cancelled'
+      };
+      
+      normalizedStatus = payStatusMapping[payMessage.status] || 'pending';
+      paymentDate = payMessage.payment_date;
+    } else {
+      return new NextResponse('OK', { status: 200 });
+    }
+
     const oldStatus = payment.status;
     payment.status = normalizedStatus;
     
-    if (message.payment_date) {
-      payment.paidAt = new Date(message.payment_date);
+    if (paymentDate) {
+      payment.paidAt = new Date(paymentDate);
     }
     
     // Salvar as alterações no pagamento
@@ -130,7 +188,7 @@ export async function POST(request: NextRequest) {
           userId: user._id,
           type: 'credit',
           amount: creditAmount,
-          description: `Pagamento PIX aprovado via webhook - ${payment.description}`,
+          description: `Pagamento PIX aprovado via webhook (${notification_type}) - ${payment.description}`,
           paymentId: payment._id,
           balanceBefore: balanceBefore,
           balanceAfter: user.balance
