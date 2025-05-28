@@ -66,9 +66,9 @@ export async function POST(request: NextRequest) {
 
       console.log('Tipos disponíveis:', JSON.stringify(typesResponse.data, null, 2));
 
-      // Extrair IDs dos tipos PIX
-      let pixPaymentId = null;
+      // Extrair IDs dos tipos PIX baseado na documentação
       let pixQrcodeId = null;
+      let pixPaymentId = null;
 
       if (typesResponse.data && typesResponse.data.webhook_types) {
         const types = typesResponse.data.webhook_types;
@@ -76,19 +76,20 @@ export async function POST(request: NextRequest) {
         types.forEach((type: any) => {
           console.log('Analisando tipo:', type);
           
-          if (type.name === 'pix_payment' || type.type === 'pix_payment') {
-            pixPaymentId = type.id;
-            console.log('PIX Payment ID encontrado:', pixPaymentId);
-          }
-          
-          if (type.name === 'pix_qrcode' || type.type === 'pix_qrcode') {
+          // Baseado na documentação: "pix_qrcodes" e "pix_payments"
+          if (type.name === 'pix_qrcodes' || type.name === 'pix_qrcode') {
             pixQrcodeId = type.id;
             console.log('PIX QRCode ID encontrado:', pixQrcodeId);
+          }
+          
+          if (type.name === 'pix_payments' || type.name === 'pix_payment') {
+            pixPaymentId = type.id;
+            console.log('PIX Payment ID encontrado:', pixPaymentId);
           }
         });
       }
 
-      if (!pixPaymentId && !pixQrcodeId) {
+      if (!pixQrcodeId && !pixPaymentId) {
         return NextResponse.json({
           success: false,
           message: 'Não foi possível encontrar IDs dos tipos PIX',
@@ -96,35 +97,30 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Agora tentar criar webhook com o formato correto
-      console.log('\n=== CRIANDO WEBHOOK COM FORMATO CORRETO ===');
+      // Agora tentar criar webhook com o formato CORRETO da documentação
+      console.log('\n=== CRIANDO WEBHOOK COM FORMATO CORRETO DA DOCUMENTAÇÃO ===');
       
       const webhookUrl = `${process.env.NEXTAUTH_URL || 'https://www.top1xreceiver.org'}/api/webhook/primepag`;
       
-      // Usar o ID do tipo PIX Payment (preferencial)
-      const webhookTypeId = pixPaymentId || pixQrcodeId;
-      
+      // Payload correto baseado na documentação oficial
       const correctPayload = {
         url: webhookUrl,
-        webhook_type_id: webhookTypeId,
-        authorization_header: true
+        authorization: process.env.PRIMEPAG_SECRET_KEY || 'webhook-auth-token'
       };
 
-      console.log('Payload correto:', JSON.stringify(correctPayload, null, 2));
+      console.log('Payload correto (baseado na documentação):', JSON.stringify(correctPayload, null, 2));
 
-      // Testar diferentes endpoints de criação
-      const endpointsToTry = [
-        '/v1/webhook',           // Singular
-        '/v1/webhook/create',    // Com create
-        '/v1/webhooks/create',   // Plural com create
-        '/webhook',              // Sem versão
-        '/webhook/create',       // Sem versão com create
-        '/v1/webhook/register',  // Com register
-        '/v1/webhooks/register'  // Plural com register
-      ];
+      // Testar com os tipos PIX encontrados usando o endpoint correto
+      const typesToTest = [
+        { id: pixQrcodeId, name: 'pix_qrcodes' },
+        { id: pixPaymentId, name: 'pix_payments' }
+      ].filter(type => type.id !== null);
 
-      for (const endpoint of endpointsToTry) {
-        console.log(`\nTentando endpoint: ${endpoint}`);
+      for (const webhookType of typesToTest) {
+        console.log(`\nTentando criar webhook para tipo: ${webhookType.name} (ID: ${webhookType.id})`);
+        
+        // Endpoint correto da documentação: /v1/webhooks/{webhook_type_id}
+        const endpoint = `/v1/webhooks/${webhookType.id}`;
         
         try {
           const createResponse = await axios.post(
@@ -145,14 +141,15 @@ export async function POST(request: NextRequest) {
 
           return NextResponse.json({
             success: true,
-            message: `Webhook criado com sucesso em ${endpoint}!`,
+            message: `Webhook criado com sucesso para ${webhookType.name}!`,
             endpoint,
+            webhookType: webhookType.name,
+            webhookTypeId: webhookType.id,
             payload: correctPayload,
             response: {
               status: createResponse.status,
               data: createResponse.data
             },
-            webhookTypeId,
             availableTypes: typesResponse.data
           });
 
@@ -162,21 +159,28 @@ export async function POST(request: NextRequest) {
           
           console.log(`❌ ${endpoint}: ${status}`, errorData);
           
-          // Se não for 404, pode ser um erro de formato, então continuar tentando
-          if (status !== 404) {
-            console.log(`Endpoint ${endpoint} existe mas deu erro ${status}`);
+          // Log detalhado do erro
+          if (status === 400) {
+            console.log('Erro 400: Payload inválido ou dados incorretos');
+          } else if (status === 401) {
+            console.log('Erro 401: Token inválido ou expirado');
+          } else if (status === 403) {
+            console.log('Erro 403: Sem permissão para criar webhook');
+          } else if (status === 404) {
+            console.log('Erro 404: Endpoint ou tipo de webhook não encontrado');
+          } else if (status === 409) {
+            console.log('Erro 409: Webhook já existe para este tipo');
           }
         }
       }
 
-      // Se chegou aqui, nenhum endpoint funcionou
+      // Se chegou aqui, nenhum tipo funcionou
       return NextResponse.json({
         success: false,
-        message: 'Nenhum endpoint de criação funcionou',
+        message: 'Nenhum tipo de webhook funcionou',
         payload: correctPayload,
-        webhookTypeId,
-        availableTypes: typesResponse.data,
-        testedEndpoints: endpointsToTry
+        testedTypes: typesToTest,
+        availableTypes: typesResponse.data
       });
 
     } catch (error) {
