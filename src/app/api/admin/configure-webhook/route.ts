@@ -59,12 +59,18 @@ export async function POST(request: NextRequest) {
             headers: {
               'Authorization': `Basic ${basicAuth}`,
               'Content-Type': 'application/x-www-form-urlencoded'
-            }
+            },
+            timeout: 30000 // 30 segundos de timeout
           }
         );
 
+        if (!authResponse.data || !authResponse.data.access_token) {
+          throw new Error(`Resposta de autenticação inválida: ${JSON.stringify(authResponse.data)}`);
+        }
+
         const token = authResponse.data.access_token;
         console.log(`✅ Autenticação bem-sucedida - Conta ${accountNumber}`);
+        console.log(`Token obtido (primeiros 20 chars): ${token.substring(0, 20)}...`);
 
         // URL do webhook
         const webhookUrl = `${process.env.NEXTAUTH_URL || 'https://www.top1xreceiver.org'}/api/webhook/primepag`;
@@ -83,10 +89,28 @@ export async function POST(request: NextRequest) {
               }
             }
           );
-          existingWebhooks = listResponse.data || [];
+          
+          // Garantir que existingWebhooks seja sempre um array
+          const responseData = listResponse.data;
+          if (Array.isArray(responseData)) {
+            existingWebhooks = responseData;
+          } else if (responseData && Array.isArray(responseData.webhooks)) {
+            existingWebhooks = responseData.webhooks;
+          } else if (responseData && Array.isArray(responseData.data)) {
+            existingWebhooks = responseData.data;
+          } else {
+            console.log(`Resposta inesperada da API de webhooks:`, responseData);
+            existingWebhooks = [];
+          }
+          
           console.log(`Webhooks existentes na conta ${accountNumber}:`, existingWebhooks.length);
+          console.log(`Dados dos webhooks:`, existingWebhooks);
         } catch (listError) {
           console.log(`Não foi possível listar webhooks existentes:`, listError);
+          if (axios.isAxiosError(listError)) {
+            console.log(`Status do erro:`, listError.response?.status);
+            console.log(`Dados do erro:`, listError.response?.data);
+          }
         }
 
         // Verificar se já existe um webhook para nossa URL
@@ -137,18 +161,50 @@ export async function POST(request: NextRequest) {
         console.error(`❌ Erro ao configurar webhook da conta ${accountNumber}:`, error);
         
         let errorMessage = 'Erro desconhecido';
+        let errorDetails = '';
+        
         if (axios.isAxiosError(error)) {
-          errorMessage = error.response?.data?.message || error.message;
-          console.error(`Detalhes do erro:`, error.response?.data);
+          const status = error.response?.status;
+          const responseData = error.response?.data;
+          
+          console.error(`Detalhes do erro HTTP:`, {
+            status,
+            statusText: error.response?.statusText,
+            data: responseData,
+            url: error.config?.url,
+            method: error.config?.method
+          });
+          
+          if (status === 401) {
+            errorMessage = 'Erro de autenticação - credenciais inválidas ou expiradas';
+            errorDetails = `Verifique se as credenciais da conta ${accountNumber} estão corretas`;
+          } else if (status === 403) {
+            errorMessage = 'Acesso negado - sem permissão para configurar webhooks';
+            errorDetails = 'A conta pode não ter permissão para gerenciar webhooks';
+          } else if (status === 404) {
+            errorMessage = 'Endpoint não encontrado';
+            errorDetails = 'A API da PrimePag pode ter mudado';
+          } else if (status === 422) {
+            errorMessage = 'Dados inválidos enviados para a API';
+            errorDetails = responseData?.message || 'Verifique os dados do webhook';
+          } else if (status && status >= 500) {
+            errorMessage = 'Erro interno da API PrimePag';
+            errorDetails = 'Tente novamente em alguns minutos';
+          } else {
+            errorMessage = responseData?.message || error.message;
+            errorDetails = status ? `Status HTTP: ${status}` : 'Erro de conexão';
+          }
         } else if (error instanceof Error) {
           errorMessage = error.message;
+          errorDetails = error.stack?.split('\n')[0] || '';
         }
 
         results.push({
           account: accountNumber,
           success: false,
           message: `Erro ao configurar webhook da conta ${accountNumber}: ${errorMessage}`,
-          error: errorMessage
+          error: errorMessage,
+          details: errorDetails
         });
       }
     }
