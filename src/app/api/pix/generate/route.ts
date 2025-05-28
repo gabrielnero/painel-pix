@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       const pixData = {
         value_cents: Math.round(amount * 100), // Converter para centavos
         generator_name: customer?.name || 'Cliente',
-        generator_document: customer?.document || '12345678901',
+        generator_document: customer?.document || '11144477735', // CPF válido como padrão
         expiration_time: expiresIn || 1800, // 30 minutos por padrão
         external_reference: authResult.userId, // Usar ID do usuário como referência
         account: account || 1 // Usar conta especificada ou conta 1 como padrão
@@ -199,8 +199,66 @@ function isValidDocument(document: string): boolean {
   // Remove caracteres não numéricos
   const numbers = document.replace(/\D/g, '');
   
-  // Validar CPF ou CNPJ
-  return numbers.length === 11 || numbers.length === 14;
+  // Validar CPF (11 dígitos) ou CNPJ (14 dígitos)
+  if (numbers.length === 11) {
+    return isValidCPF(numbers);
+  } else if (numbers.length === 14) {
+    return isValidCNPJ(numbers);
+  }
+  
+  return false;
+}
+
+function isValidCPF(cpf: string): boolean {
+  // Verificar se todos os dígitos são iguais
+  if (/^(\d)\1{10}$/.test(cpf)) return false;
+  
+  // Validar primeiro dígito verificador
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(cpf[i]) * (10 - i);
+  }
+  let digit1 = 11 - (sum % 11);
+  if (digit1 > 9) digit1 = 0;
+  
+  if (parseInt(cpf[9]) !== digit1) return false;
+  
+  // Validar segundo dígito verificador
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(cpf[i]) * (11 - i);
+  }
+  let digit2 = 11 - (sum % 11);
+  if (digit2 > 9) digit2 = 0;
+  
+  return parseInt(cpf[10]) === digit2;
+}
+
+function isValidCNPJ(cnpj: string): boolean {
+  // Verificar se todos os dígitos são iguais
+  if (/^(\d)\1{13}$/.test(cnpj)) return false;
+  
+  // Validar primeiro dígito verificador
+  const weights1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  let sum = 0;
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(cnpj[i]) * weights1[i];
+  }
+  let digit1 = 11 - (sum % 11);
+  if (digit1 > 9) digit1 = 0;
+  
+  if (parseInt(cnpj[12]) !== digit1) return false;
+  
+  // Validar segundo dígito verificador
+  const weights2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  sum = 0;
+  for (let i = 0; i < 13; i++) {
+    sum += parseInt(cnpj[i]) * weights2[i];
+  }
+  let digit2 = 11 - (sum % 11);
+  if (digit2 > 9) digit2 = 0;
+  
+  return parseInt(cnpj[13]) === digit2;
 }
 
 function isValidEmail(email: string): boolean {

@@ -195,8 +195,8 @@ class PrimepagService {
 
       const requestData = {
         value_cents: Math.round(data.value_cents),
-        generator_name: data.generator_name,
-        generator_document: data.generator_document,
+        generator_name: data.generator_name || 'Cliente',
+        generator_document: data.generator_document || '11144477735', // CPF válido como padrão
         expiration_time: data.expiration_time || 1800, // Default 30 minutes
         external_reference: data.external_reference
       };
