@@ -45,6 +45,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // SEGURANÇA: Verificar se o usuário já possui PIX pendente
+    await connectToDatabase();
+    const existingPayment = await Payment.findOne({
+      userId: authResult.userId,
+      status: { $in: ['pending', 'awaiting_payment'] }
+    });
+
+    if (existingPayment) {
+      console.log('⚠️ SEGURANÇA: Tentativa de gerar PIX com pagamento pendente:', {
+        userId: authResult.userId,
+        existingPaymentId: existingPayment._id,
+        existingAmount: existingPayment.amount,
+        newAmount: amount
+      });
+      
+      return NextResponse.json({
+        success: false,
+        message: 'SEGURANÇA: Você já possui um PIX pendente. Aguarde o pagamento ou cancele para gerar um novo.',
+        existingPayment: {
+          id: existingPayment._id,
+          amount: existingPayment.amount,
+          status: existingPayment.status,
+          createdAt: existingPayment.createdAt
+        }
+      }, { status: 409 }); // 409 Conflict
+    }
+
     // Validar dados do cliente se fornecidos
     if (customer) {
       if (customer.document && !isValidDocument(customer.document)) {

@@ -65,6 +65,7 @@ export interface IWalletTransaction extends Document {
   amount: number;
   description: string;
   paymentId?: mongoose.Types.ObjectId;
+  withdrawalId?: mongoose.Types.ObjectId;
   balanceBefore: number;
   balanceAfter: number;
   createdAt: Date;
@@ -96,6 +97,23 @@ export interface IShoutboxMessage extends Document {
   role: 'user' | 'moderator' | 'admin';
   profilePicture?: string;
   createdAt: Date;
+}
+
+export interface IWithdrawal extends Document {
+  userId: mongoose.Types.ObjectId;
+  amount: number;
+  pixKey: string;
+  pixKeyType: string;
+  status: string;
+  requestedAt: Date;
+  reviewedAt?: Date;
+  reviewedBy?: mongoose.Types.ObjectId;
+  reviewNotes?: string;
+  processedAt?: Date;
+  primepagTransactionId?: string;
+  primepagAccount: 1 | 2;
+  failureReason?: string;
+  metadata?: mongoose.Schema.Types.Mixed;
 }
 
 // Definir esquemas
@@ -310,6 +328,10 @@ const WalletTransactionSchema = new Schema<IWalletTransaction>({
     type: Schema.Types.ObjectId,
     ref: 'Payment'
   },
+  withdrawalId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Withdrawal'
+  },
   balanceBefore: {
     type: Number,
     required: true
@@ -419,6 +441,66 @@ const ShoutboxMessageSchema = new Schema<IShoutboxMessage>({
   }
 });
 
+const WithdrawalSchema = new Schema<IWithdrawal>({
+  userId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  amount: {
+    type: Number,
+    required: true,
+    min: 10
+  },
+  pixKey: {
+    type: String,
+    required: true
+  },
+  pixKeyType: {
+    type: String,
+    enum: ['cpf', 'cnpj', 'email', 'phone', 'random'],
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected', 'processing', 'completed', 'failed'],
+    default: 'pending'
+  },
+  requestedAt: {
+    type: Date,
+    default: Date.now
+  },
+  reviewedAt: {
+    type: Date
+  },
+  reviewedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  reviewNotes: {
+    type: String
+  },
+  processedAt: {
+    type: Date
+  },
+  primepagTransactionId: {
+    type: String
+  },
+  primepagAccount: {
+    type: Number,
+    enum: [1, 2]
+  },
+  failureReason: {
+    type: String
+  },
+  metadata: {
+    type: mongoose.Schema.Types.Mixed
+  }
+});
+
+WithdrawalSchema.index({ userId: 1, status: 1 });
+WithdrawalSchema.index({ status: 1, requestedAt: 1 });
+
 // Função auxiliar para lidar com os modelos no ambiente Next.js
 const getModel = <T extends Document>(
   modelName: string,
@@ -443,4 +525,5 @@ export const Payment = getModel<IPayment>('Payment', PaymentSchema);
 export const WalletTransaction = getModel<IWalletTransaction>('WalletTransaction', WalletTransactionSchema);
 export const SystemConfig = getModel<ISystemConfig>('SystemConfig', SystemConfigSchema);
 export const ProfileComment = getModel<IProfileComment>('ProfileComment', ProfileCommentSchema);
-export const ShoutboxMessage = getModel<IShoutboxMessage>('ShoutboxMessage', ShoutboxMessageSchema); 
+export const ShoutboxMessage = getModel<IShoutboxMessage>('ShoutboxMessage', ShoutboxMessageSchema);
+export const Withdrawal = getModel<IWithdrawal>('Withdrawal', WithdrawalSchema); 

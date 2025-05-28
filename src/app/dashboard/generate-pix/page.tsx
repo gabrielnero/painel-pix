@@ -153,8 +153,27 @@ function GeneratePixContent() {
       return;
     }
 
+    // SEGURANÇA: Verificar se já existe PIX pendente antes de gerar novo
+    if (hasActivePix) {
+      toast.error('⚠️ Você já possui um PIX pendente. Aguarde o pagamento ou cancele para gerar um novo.');
+      return;
+    }
+
     setLoading(true);
     try {
+      // Verificação adicional no servidor para garantir segurança
+      const checkResponse = await fetch('/api/pix/active');
+      if (checkResponse.ok) {
+        const checkData = await checkResponse.json();
+        if (checkData.success && checkData.payment && 
+            (checkData.payment.status === 'pending' || checkData.payment.status === 'awaiting_payment')) {
+          toast.error('⚠️ SEGURANÇA: Já existe um PIX pendente. Não é possível gerar outro.');
+          setHasActivePix(true);
+          setPixData(checkData.payment);
+          return;
+        }
+      }
+
       const response = await fetch('/api/pix/generate', {
         method: 'POST',
         headers: {

@@ -381,6 +381,55 @@ class PrimepagService {
       throw new Error('Falha ao listar QR Codes');
     }
   }
+
+  // Método para recuperar saldo da conta
+  async getAccountBalance(accountNumber: 1 | 2 = 1): Promise<any> {
+    try {
+      console.log(`🏦 Recuperando saldo da conta ${accountNumber}...`);
+      
+      const token = await this.ensureAuthenticated(accountNumber);
+      if (!token) {
+        throw new Error(`Falha ao obter token de acesso para conta ${accountNumber}`);
+      }
+
+      const response = await fetch(`${BASE_URL}/v1/account/balance`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log(`📊 Resposta do saldo (conta ${accountNumber}):`, response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Erro ao recuperar saldo (conta ${accountNumber}):`, errorText);
+        throw new Error(`Erro HTTP ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log(`✅ Saldo recuperado (conta ${accountNumber}):`, data);
+
+      return {
+        success: true,
+        account: accountNumber,
+        balance: data.data?.account_balance || {
+          available_value_cents: 0,
+          blocked_value_cents: 0,
+          total_value_cents: 0
+        },
+        status: data.status
+      };
+    } catch (error) {
+      console.error(`❌ Erro ao recuperar saldo da conta ${accountNumber}:`, error);
+      return {
+        success: false,
+        account: accountNumber,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
 }
 
 export const primepagService = PrimepagService.getInstance(); 
