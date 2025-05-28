@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { 
   FaUsers, 
   FaUserShield, 
@@ -24,6 +25,11 @@ import {
   FaDownload
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
+
+// Componente que só renderiza no cliente para evitar hidratação
+const ClientOnlyWrapper = dynamic(() => Promise.resolve(({ children }: { children: React.ReactNode }) => <>{children}</>), {
+  ssr: false
+});
 
 interface DashboardStats {
   totalUsers: number;
@@ -245,10 +251,15 @@ export default function AdminDashboard() {
     return primepagAccounts.map((account) => {
       const accountKey = `account-${account.id}-${account.name}`;
       
+      // Verificar se os dados da conta são válidos
+      const hasValidBalance = account.data?.account_balance && 
+        typeof account.data.account_balance === 'object' &&
+        typeof account.data.account_balance.available_value_cents === 'number';
+      
       return (
         <div key={accountKey} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white" suppressHydrationWarning>
               {account.name || `Conta ${account.id}`}
             </h3>
             <div className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -257,7 +268,7 @@ export default function AdminDashboard() {
                 : account.error
                 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                 : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-            }`}>
+            }`} suppressHydrationWarning>
               {account.error ? 'Erro' : account.data?.status || 'Desconhecido'}
             </div>
           </div>
@@ -265,31 +276,31 @@ export default function AdminDashboard() {
           {account.error ? (
             <div className="text-red-600 dark:text-red-400 text-sm">
               <p className="font-medium">Erro ao carregar saldo:</p>
-              <p className="mt-1 break-words">{account.error}</p>
+              <p className="mt-1 break-words" suppressHydrationWarning>{account.error}</p>
             </div>
-          ) : account.data?.account_balance ? (
+          ) : hasValidBalance ? (
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-gray-400">Saldo Disponível:</span>
-                <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                  R$ {formatCurrency(account.data.account_balance.available_value_cents)}
+                <span className="text-lg font-bold text-green-600 dark:text-green-400" suppressHydrationWarning>
+                  R$ {formatCurrency(account.data?.account_balance?.available_value_cents || 0)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-gray-400">Saldo Bloqueado:</span>
-                <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
-                  R$ {formatCurrency(account.data.account_balance.blocked_value_cents)}
+                <span className="text-sm font-medium text-orange-600 dark:text-orange-400" suppressHydrationWarning>
+                  R$ {formatCurrency(account.data?.account_balance?.blocked_value_cents || 0)}
                 </span>
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
                 <span className="text-sm font-medium text-gray-900 dark:text-white">Saldo Total:</span>
-                <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                  R$ {formatCurrency(account.data.account_balance.total_value_cents)}
+                <span className="text-lg font-bold text-blue-600 dark:text-blue-400" suppressHydrationWarning>
+                  R$ {formatCurrency(account.data?.account_balance?.total_value_cents || 0)}
                 </span>
               </div>
             </div>
           ) : (
-            <div className="text-gray-500 dark:text-gray-400 text-sm">
+            <div className="text-gray-500 dark:text-gray-400 text-sm" suppressHydrationWarning>
               Dados de saldo não disponíveis
             </div>
           )}
@@ -444,7 +455,9 @@ export default function AdminDashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {primepagBalanceSection}
+            <ClientOnlyWrapper>
+              {primepagBalanceSection}
+            </ClientOnlyWrapper>
           </div>
         </div>
 

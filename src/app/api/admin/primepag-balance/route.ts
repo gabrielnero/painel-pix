@@ -31,10 +31,15 @@ export async function GET(request: NextRequest) {
     try {
       console.log('Consultando saldo da conta 1...');
       const account1Balance = await primepagService.getAccountBalance(1);
+      console.log('Dados brutos da conta 1:', account1Balance);
+      
+      // Verificar e normalizar a estrutura dos dados
+      const normalizedData = account1Balance?.data || account1Balance;
+      
       accounts.push({
         id: 1,
         name: 'Conta Principal',
-        data: account1Balance,
+        data: normalizedData,
         error: null
       });
       console.log('✅ Saldo da conta 1 recuperado com sucesso');
@@ -74,10 +79,15 @@ export async function GET(request: NextRequest) {
       }
       
       const account2Balance = await primepagService.getAccountBalance(2);
+      console.log('Dados brutos da conta 2:', account2Balance);
+      
+      // Verificar e normalizar a estrutura dos dados
+      const normalizedData2 = account2Balance?.data || account2Balance;
+      
       accounts.push({
         id: 2,
         name: 'Conta Secundária',
-        data: account2Balance,
+        data: normalizedData2,
         error: null
       });
       console.log('✅ Saldo da conta 2 recuperado com sucesso');
