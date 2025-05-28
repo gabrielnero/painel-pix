@@ -58,46 +58,53 @@ export async function POST(request: NextRequest) {
       // URL do webhook
       const webhookUrl = `${process.env.NEXTAUTH_URL || 'https://www.top1xreceiver.org'}/api/webhook/primepag`;
       
-      // Diferentes payloads para testar baseados na documentação PrimePag
+      // Diferentes payloads para testar baseados nos tipos REAIS da PrimePag
       const payloadsToTest = [
         {
-          name: 'Payload PrimePag Oficial - PIX Payment',
-          data: {
-            url: webhookUrl,
-            notification_type: 'pix_payment'
-          }
-        },
-        {
-          name: 'Payload PrimePag Oficial - PIX QRCode',
+          name: 'PIX QRCode (Tipo Real)',
           data: {
             url: webhookUrl,
             notification_type: 'pix_qrcode'
           }
         },
         {
-          name: 'Payload PrimePag Oficial - PIX Static QRCode',
+          name: 'PIX Payment (Tipo Real)',
           data: {
             url: webhookUrl,
-            notification_type: 'pix_static_qrcode'
+            notification_type: 'pix_payment'
           }
         },
         {
-          name: 'Payload Múltiplos Tipos',
+          name: 'Múltiplos Tipos PIX',
           data: {
             url: webhookUrl,
-            notification_types: ['pix_payment', 'pix_qrcode', 'pix_static_qrcode']
+            notification_types: ['pix_qrcode', 'pix_payment']
+          }
+        },
+        {
+          name: 'Payload Simples - PIX QRCode',
+          data: {
+            url: webhookUrl,
+            type: 'pix_qrcode'
+          }
+        },
+        {
+          name: 'Payload Simples - PIX Payment',
+          data: {
+            url: webhookUrl,
+            type: 'pix_payment'
           }
         }
       ];
 
       const testResults = [];
 
-      // Testar diferentes endpoints baseados na documentação
+      // Testar diferentes endpoints baseados na documentação oficial PrimePag
       const endpointsToTest = [
-        '/v1/webhook',        // Endpoint singular (mais provável baseado na doc)
-        '/v1/webhooks',       // Endpoint plural (que testamos antes)
-        '/webhook',           // Sem versão
-        '/webhooks'           // Sem versão plural
+        '/v1/webhooks',       // Endpoint da documentação "Register/Change Webhook"
+        '/v1/webhook',        // Variação singular
+        '/webhooks',          // Sem versão
+        '/webhook'            // Sem versão singular
       ];
 
       let webhookCreated = false;
