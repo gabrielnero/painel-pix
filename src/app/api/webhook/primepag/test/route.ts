@@ -63,22 +63,24 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(webhookPayload)
     });
 
-    const result = await response.json();
-
+    const responseText = await response.text();
+    
     return NextResponse.json({
       success: true,
       message: 'Webhook de teste enviado',
       webhookResponse: {
         status: response.status,
-        data: result
+        statusText: response.statusText,
+        body: responseText
       },
-      testPayload: webhookPayload
+      testPayload: webhookPayload,
+      signatureString: signatureString.replace(secretKey, '[SECRET_KEY]')
     });
 
   } catch (error) {
     console.error('Erro no teste do webhook:', error);
     return NextResponse.json(
-      { error: 'Erro interno do servidor' },
+      { error: 'Erro interno do servidor', details: error instanceof Error ? error.message : 'Erro desconhecido' },
       { status: 500 }
     );
   }

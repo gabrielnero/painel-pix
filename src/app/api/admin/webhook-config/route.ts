@@ -79,7 +79,14 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({ referenceCode, valueInCents })
       });
 
-      const result = await response.json();
+      let result;
+      try {
+        const text = await response.text();
+        result = text ? JSON.parse(text) : { message: 'Resposta vazia' };
+      } catch (parseError) {
+        console.error('Erro ao fazer parse da resposta:', parseError);
+        result = { error: 'Erro ao processar resposta', status: response.status };
+      }
 
       return NextResponse.json({
         success: true,

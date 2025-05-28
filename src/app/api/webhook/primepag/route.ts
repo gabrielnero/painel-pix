@@ -36,26 +36,20 @@ export async function POST(request: NextRequest) {
 
     if (!message || !md5) {
       console.error('❌ Webhook: Dados inválidos - message ou md5 ausentes');
-      return NextResponse.json(
-        { error: 'Dados do webhook inválidos' },
-        { status: 400 }
-      );
+      return new NextResponse('Bad Request', { status: 400 });
     }
 
     // Verificar se é uma notificação de pagamento PIX
     if (notification_type !== 'pix_payment') {
       console.log(`ℹ️ Webhook: Tipo de notificação ${notification_type} ignorado (esperado: pix_payment)`);
-      return NextResponse.json({ success: true, message: 'Tipo de notificação ignorado' });
+      return new NextResponse('OK', { status: 200 });
     }
 
     // Verificar assinatura do webhook conforme documentação PrimePag
     const secretKey = process.env.PRIMEPAG_SECRET_KEY;
     if (!secretKey) {
       console.error('❌ Webhook: PRIMEPAG_SECRET_KEY não configurada');
-      return NextResponse.json(
-        { error: 'Configuração inválida' },
-        { status: 500 }
-      );
+      return new NextResponse('Internal Server Error', { status: 500 });
     }
 
     // Hash MD5 conforme documentação: payment.{reference_code}.{idempotent_id}.{value_cents}.{secret_key}
@@ -73,10 +67,7 @@ export async function POST(request: NextRequest) {
 
     if (md5 !== expectedSignature) {
       console.error('❌ Webhook: Assinatura MD5 inválida');
-      return NextResponse.json(
-        { error: 'Assinatura inválida' },
-        { status: 401 }
-      );
+      return new NextResponse('Unauthorized', { status: 401 });
     }
 
     console.log('✅ Webhook: Assinatura MD5 válida');
@@ -88,10 +79,7 @@ export async function POST(request: NextRequest) {
     const payment = await Payment.findOne({ referenceCode: message.reference_code });
     if (!payment) {
       console.error(`❌ Webhook: Pagamento não encontrado no banco de dados - Reference Code: ${message.reference_code}`);
-      return NextResponse.json(
-        { error: 'Pagamento não encontrado' },
-        { status: 404 }
-      );
+      return new NextResponse('Payment Not Found', { status: 404 });
     }
 
     console.log(`📋 Pagamento encontrado:`, {
@@ -156,12 +144,10 @@ export async function POST(request: NextRequest) {
       console.log(`ℹ️ Webhook: Pagamento ${message.reference_code} já estava pago, ignorando duplicação`);
     }
 
-    return NextResponse.json({ success: true });
+    // Retornar HTTP 200 conforme documentação PrimePag
+    return new NextResponse('OK', { status: 200 });
   } catch (error) {
     console.error('Erro no webhook:', error);
-    return NextResponse.json(
-      { error: 'Erro interno do servidor' },
-      { status: 500 }
-    );
+    return new NextResponse('Internal Server Error', { status: 500 });
   }
 } 
