@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     // Gerar PIX usando a API da PrimePag primeiro
     let primepagResponse;
     try {
-      console.log('=== INICIANDO GERAÇÃO DE PIX ===');
+      console.log('=== INICIANDO GERAÇÃO DE PIX (v2) ===');
       console.log('Dados recebidos:', { amount, description, account: account || 1 });
       
       // Validar configurações do sistema antes de gerar PIX
