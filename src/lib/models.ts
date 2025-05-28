@@ -116,6 +116,17 @@ export interface IWithdrawal extends Document {
   metadata?: mongoose.Schema.Types.Mixed;
 }
 
+export interface INotification extends Document {
+  userId: mongoose.Types.ObjectId;
+  type: 'payment_approved' | 'withdrawal_approved' | 'withdrawal_rejected' | 'system_announcement' | 'invite_used';
+  title: string;
+  message: string;
+  read: boolean;
+  data?: mongoose.Schema.Types.Mixed;
+  createdAt: Date;
+  expiresAt?: Date;
+}
+
 // Definir esquemas
 const UserSchema = new Schema<IUser>({
   username: {
@@ -501,6 +512,47 @@ const WithdrawalSchema = new Schema<IWithdrawal>({
 WithdrawalSchema.index({ userId: 1, status: 1 });
 WithdrawalSchema.index({ status: 1, requestedAt: 1 });
 
+const NotificationSchema = new Schema<INotification>({
+  userId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  type: {
+    type: String,
+    enum: ['payment_approved', 'withdrawal_approved', 'withdrawal_rejected', 'system_announcement', 'invite_used'],
+    required: true
+  },
+  title: {
+    type: String,
+    required: true,
+    maxlength: 200
+  },
+  message: {
+    type: String,
+    required: true,
+    maxlength: 1000
+  },
+  read: {
+    type: Boolean,
+    default: false
+  },
+  data: {
+    type: mongoose.Schema.Types.Mixed
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  expiresAt: {
+    type: Date
+  }
+});
+
+NotificationSchema.index({ userId: 1, createdAt: -1 });
+NotificationSchema.index({ userId: 1, read: 1 });
+NotificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 // Função auxiliar para lidar com os modelos no ambiente Next.js
 const getModel = <T extends Document>(
   modelName: string,
@@ -526,4 +578,5 @@ export const WalletTransaction = getModel<IWalletTransaction>('WalletTransaction
 export const SystemConfig = getModel<ISystemConfig>('SystemConfig', SystemConfigSchema);
 export const ProfileComment = getModel<IProfileComment>('ProfileComment', ProfileCommentSchema);
 export const ShoutboxMessage = getModel<IShoutboxMessage>('ShoutboxMessage', ShoutboxMessageSchema);
-export const Withdrawal = getModel<IWithdrawal>('Withdrawal', WithdrawalSchema); 
+export const Withdrawal = getModel<IWithdrawal>('Withdrawal', WithdrawalSchema);
+export const Notification = getModel<INotification>('Notification', NotificationSchema); 

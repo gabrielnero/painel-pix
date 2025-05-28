@@ -14,7 +14,8 @@ import {
   FaArrowUp,
   FaArrowDown,
   FaPlus,
-  FaEye
+  FaEye,
+  FaDownload
 } from 'react-icons/fa';
 import NotificationCenter from '@/components/NotificationCenter';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -205,17 +206,24 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm font-medium text-green-100">Saldo da Carteira</p>
                 <p className="text-2xl font-bold">
-                  R$ {userBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {userBalance.toFixed(2).replace('.', ',')}
                 </p>
               </div>
               <div className="p-3 bg-white/20 rounded-lg">
                 <FaMoneyBillWave className="h-6 w-6 text-white" />
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-4 flex items-center justify-between">
               <span className="text-sm text-green-100">
                 Disponível para saque
               </span>
+              <Link 
+                href="/dashboard/withdrawal"
+                className="bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1 rounded-full transition-colors flex items-center"
+              >
+                <FaDownload className="mr-1 h-3 w-3" />
+                Sacar
+              </Link>
             </div>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">

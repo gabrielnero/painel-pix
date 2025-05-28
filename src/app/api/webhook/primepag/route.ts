@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { connectToDatabase } from '@/lib/db';
 import { User, Payment, WalletTransaction } from '@/lib/models';
+import { notificationService } from '@/lib/services/notifications';
 
 // Interface para Notificação de QRCode (quando QRCode é pago)
 interface QRCodeWebhookMessage {
@@ -210,7 +211,14 @@ export async function POST(request: NextRequest) {
           balanceAfter: user.balance
         });
 
-        console.log(`✅ Webhook: Creditado R$ ${creditAmount.toFixed(2)} para usuário ${user.username} (Pagamento: ${message.reference_code})`);
+        // Criar notificação para o usuário
+        await notificationService.createPaymentApprovedNotification(
+          payment.userId.toString(),
+          payment.amount,
+          creditAmount
+        );
+
+        console.log(`💰 Saldo atualizado para usuário ${payment.userId}: R$ ${user.balance.toFixed(2)}`);
       } else {
         console.error(`❌ Webhook: Usuário não encontrado para pagamento ${message.reference_code}`);
       }

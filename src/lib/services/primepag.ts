@@ -259,7 +259,7 @@ class PrimepagService {
     try {
       console.log(`=== CONSULTANDO STATUS PIX - CONTA ${accountNumber} ===`);
       console.log('Reference Code:', referenceCode);
-      
+
       const token = await this.ensureAuthenticated(accountNumber);
       console.log('Token obtido com sucesso');
 
@@ -267,10 +267,10 @@ class PrimepagService {
       console.log('URL da consulta:', url);
 
       const response = await axios.get<any>(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
       });
 
       console.log('Resposta da API PrimePag:', {

@@ -3,6 +3,7 @@ import { verifyAuth } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
 import { Withdrawal, User, WalletTransaction } from '@/lib/models';
 import { primepagService } from '@/lib/services/primepag';
+import { notificationService } from '@/lib/services/notifications';
 import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
@@ -66,6 +67,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       
       await withdrawal.save();
 
+      // Criar notificação para o usuário
+      await notificationService.createWithdrawalRejectedNotification(
+        user._id.toString(),
+        withdrawal.amount,
+        notes
+      );
+
       console.log(`❌ Saque rejeitado:`, {
         withdrawalId: withdrawal._id,
         userId: user._id,
@@ -121,6 +129,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         balanceBefore: balanceBefore,
         balanceAfter: user.balance
       });
+
+      // Criar notificação para o usuário
+      await notificationService.createWithdrawalApprovedNotification(
+        user._id.toString(),
+        withdrawal.amount
+      );
 
       console.log(`✅ Saque aprovado e processado:`, {
         withdrawalId: withdrawal._id,
