@@ -48,6 +48,7 @@ export default function AdminWebhookPage() {
   const [testingWebhookTypes, setTestingWebhookTypes] = useState(false);
   const [debuggingTypes, setDebuggingTypes] = useState(false);
   const [debuggingRegister, setDebuggingRegister] = useState(false);
+  const [scanningEndpoints, setScanningEndpoints] = useState(false);
 
   useEffect(() => {
     fetchWebhookConfig();
@@ -397,6 +398,42 @@ export default function AdminWebhookPage() {
       toast.error('Erro no debug de registro');
     } finally {
       setDebuggingRegister(false);
+    }
+  };
+
+  const scanWebhookEndpoints = async () => {
+    setScanningEndpoints(true);
+    try {
+      const response = await fetch('/api/debug/webhook-endpoints-scan');
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(`🎉 ${data.summary.working} endpoint(s) funcionando!`);
+        console.log('=== ESCANEAMENTO DE ENDPOINTS ===');
+        console.log('Resultados completos:', data);
+        console.log('Resumo:', data.summary);
+        
+        if (data.summary.workingEndpoints.length > 0) {
+          console.log('Endpoints que funcionam:');
+          data.summary.workingEndpoints.forEach((ep: any) => {
+            console.log(`  ✅ ${ep.method} ${ep.endpoint}: ${ep.status}`);
+            toast.success(`✅ ${ep.method} ${ep.endpoint} funciona!`);
+          });
+        }
+        
+        if (data.summary.methodNotAllowed > 0) {
+          toast.success(`ℹ️ ${data.summary.methodNotAllowed} endpoint(s) com 405 (Method Not Allowed)`);
+        }
+      } else {
+        toast.error('❌ Nenhum endpoint funcionando');
+        console.log('=== FALHA NO ESCANEAMENTO ===');
+        console.log('Erro:', data);
+      }
+    } catch (error) {
+      console.error('Erro no escaneamento de endpoints:', error);
+      toast.error('Erro no escaneamento de endpoints');
+    } finally {
+      setScanningEndpoints(false);
     }
   };
 
@@ -785,6 +822,27 @@ export default function AdminWebhookPage() {
               <>
                 <FaCog className="mr-2" />
                 Testar Registro de Webhook
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Botão para escanear endpoints */}
+        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <button
+            onClick={scanWebhookEndpoints}
+            disabled={scanningEndpoints}
+            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
+          >
+            {scanningEndpoints ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Testando...
+              </>
+            ) : (
+              <>
+                <FaCog className="mr-2" />
+                Testar Escaneamento de Endpoints
               </>
             )}
           </button>
