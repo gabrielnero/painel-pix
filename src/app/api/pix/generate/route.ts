@@ -65,9 +65,16 @@ export async function POST(request: NextRequest) {
     // Gerar PIX usando a API da PrimePag primeiro
     let primepagResponse;
     try {
+      console.log('=== INICIANDO GERAÇÃO DE PIX ===');
+      console.log('Dados recebidos:', { amount, description, account: account || 1 });
+      
       // Validar configurações do sistema antes de gerar PIX
+      console.log('Validando configurações do sistema...');
       const configValidation = await validatePixConfig();
+      console.log('Resultado da validação:', configValidation);
+      
       if (!configValidation.valid) {
+        console.log('Configurações inválidas:', configValidation.missing);
         return NextResponse.json({
           success: false,
           message: `Configurações incompletas: ${configValidation.missing.join(', ')}. Configure no painel administrativo.`,
@@ -75,22 +82,41 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
       }
 
-      primepagResponse = await primepagService.generatePixQRCode({
+      console.log('Preparando dados para PrimePag...');
+      const pixData = {
         value_cents: Math.round(amount * 100), // Converter para centavos
         generator_name: customer?.name || 'Cliente',
         generator_document: customer?.document || '12345678901',
         expiration_time: expiresIn || 1800, // 30 minutos por padrão
         external_reference: authResult.userId, // Usar ID do usuário como referência
         account: account || 1 // Usar conta especificada ou conta 1 como padrão
-      });
+      };
+      console.log('Dados para PrimePag:', pixData);
 
-      console.log('PIX gerado via PrimePag:', primepagResponse);
+      console.log('Chamando PrimePag service...');
+      primepagResponse = await primepagService.generatePixQRCode(pixData);
+
+      console.log('PIX gerado via PrimePag com sucesso:', {
+        hasQrcode: !!primepagResponse?.qrcode,
+        hasContent: !!primepagResponse?.qrcode?.content,
+        hasImage: !!primepagResponse?.qrcode?.image_base64,
+        referenceCode: primepagResponse?.qrcode?.reference_code
+      });
     } catch (primepagError) {
-      console.error('Erro ao gerar PIX na PrimePag:', primepagError);
+      console.error('=== ERRO DETALHADO NA PRIMEPAG ===');
+      console.error('Tipo do erro:', typeof primepagError);
+      console.error('Erro completo:', primepagError);
+      console.error('Message:', primepagError instanceof Error ? primepagError.message : String(primepagError));
+      console.error('Stack:', primepagError instanceof Error ? primepagError.stack : 'N/A');
+      
       return NextResponse.json({
         success: false,
         message: 'Erro ao gerar PIX na PrimePag',
-        error: primepagError instanceof Error ? primepagError.message : String(primepagError)
+        error: primepagError instanceof Error ? primepagError.message : String(primepagError),
+        details: {
+          type: typeof primepagError,
+          stack: primepagError instanceof Error ? primepagError.stack : undefined
+        }
       }, { status: 500 });
     }
 

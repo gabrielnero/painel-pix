@@ -71,12 +71,23 @@ class PrimepagService {
 
   private async authenticate(accountNumber: 1 | 2 = 1): Promise<void> {
     try {
+      console.log(`=== AUTENTICAÇÃO PRIMEPAG CONTA ${accountNumber} ===`);
       console.log(`Iniciando autenticação com Primepag - Conta ${accountNumber}...`);
       
       // Obter configurações da conta específica
+      console.log('Obtendo configurações da conta...');
       const accountConfig = await getPrimepagAccountConfig(accountNumber);
+      console.log('Configurações obtidas:', {
+        hasClientId: !!accountConfig.clientId,
+        hasClientSecret: !!accountConfig.clientSecret,
+        enabled: accountConfig.enabled,
+        name: accountConfig.name,
+        clientIdLength: accountConfig.clientId?.length || 0,
+        clientSecretLength: accountConfig.clientSecret?.length || 0
+      });
       
       if (!accountConfig.enabled || !accountConfig.clientId || !accountConfig.clientSecret) {
+        console.error(`Configurações da conta ${accountNumber} incompletas:`, accountConfig);
         throw new Error(`Conta ${accountNumber} da Primepag não está configurada ou habilitada`);
       }
       
@@ -98,13 +109,27 @@ class PrimepagService {
         'Authorization': `Basic ${credentials}`
       };
 
+      console.log('Fazendo requisição de autenticação...');
+      console.log('URL:', `${BASE_URL}/auth/generate_token`);
+      console.log('Headers:', { ...requestConfig.headers, Authorization: 'Basic [HIDDEN]' });
+      console.log('Body:', requestBody);
+
       const response = await axios.post<PrimepagAuthResponse>(
         `${BASE_URL}/auth/generate_token`,
         qs.stringify(requestBody),
         requestConfig
       );
 
+      console.log('Resposta da autenticação:', {
+        status: response.status,
+        statusText: response.statusText,
+        hasAccessToken: !!response.data?.access_token,
+        tokenType: response.data?.token_type,
+        expiresIn: response.data?.expires_in
+      });
+
       if (!response.data.access_token) {
+        console.error('Token de acesso não recebido. Resposta completa:', response.data);
         throw new Error('Token de acesso não recebido');
       }
 
@@ -116,8 +141,23 @@ class PrimepagService {
       
       console.log(`Autenticação realizada com sucesso - Conta ${accountNumber}`);
     } catch (error) {
-      console.error(`Erro ao autenticar com Primepag - Conta ${accountNumber}:`, error);
-      throw new Error(`Falha na autenticação com Primepag - Conta ${accountNumber}`);
+      console.error(`=== ERRO NA AUTENTICAÇÃO CONTA ${accountNumber} ===`);
+      console.error('Tipo do erro:', typeof error);
+      console.error('Erro completo:', error);
+      if (error instanceof Error) {
+        console.error('Message:', error.message);
+        console.error('Stack:', error.stack);
+      }
+      if (axios.isAxiosError(error)) {
+        console.error('Axios Error Details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: error.config?.url,
+          method: error.config?.method
+        });
+      }
+      throw new Error(`Falha na autenticação com Primepag - Conta ${accountNumber}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -139,19 +179,36 @@ class PrimepagService {
   public async generatePixQRCode(data: QRCodeGenerateRequest): Promise<QRCodeResponse> {
     try {
       const accountNumber = data.account || 1; // Usar conta 1 como padrão
-      const token = await this.ensureAuthenticated(accountNumber);
+      console.log(`=== GERANDO PIX QR CODE - CONTA ${accountNumber} ===`);
+      console.log('Dados recebidos:', {
+        value_cents: data.value_cents,
+        generator_name: data.generator_name,
+        generator_document: data.generator_document,
+        expiration_time: data.expiration_time,
+        external_reference: data.external_reference,
+        account: accountNumber
+      });
 
-      console.log(`Gerando PIX usando Conta ${accountNumber}`);
+      console.log('Obtendo token de autenticação...');
+      const token = await this.ensureAuthenticated(accountNumber);
+      console.log('Token obtido com sucesso');
+
+      const requestData = {
+        value_cents: Math.round(data.value_cents),
+        generator_name: data.generator_name,
+        generator_document: data.generator_document,
+        expiration_time: data.expiration_time || 1800, // Default 30 minutes
+        external_reference: data.external_reference
+      };
+
+      console.log('Fazendo requisição para gerar PIX...');
+      console.log('URL:', `${BASE_URL}/v1/pix/qrcodes`);
+      console.log('Request Data:', requestData);
+      console.log('Headers:', { Authorization: 'Bearer [HIDDEN]', 'Content-Type': 'application/json' });
 
       const response = await axios.post<QRCodeResponse>(
         `${BASE_URL}/v1/pix/qrcodes`,
-        {
-          value_cents: Math.round(data.value_cents),
-          generator_name: data.generator_name,
-          generator_document: data.generator_document,
-          expiration_time: data.expiration_time || 1800, // Default 30 minutes
-          external_reference: data.external_reference
-        },
+        requestData,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -160,10 +217,41 @@ class PrimepagService {
         }
       );
 
+      console.log('Resposta da geração de PIX:', {
+        status: response.status,
+        statusText: response.statusText,
+        hasData: !!response.data,
+        hasQrcode: !!response.data?.qrcode,
+        hasContent: !!response.data?.qrcode?.content,
+        hasImage: !!response.data?.qrcode?.image_base64,
+        referenceCode: response.data?.qrcode?.reference_code
+      });
+
+      if (!response.data || !response.data.qrcode) {
+        console.error('Resposta inválida da API PrimePag:', response.data);
+        throw new Error('Resposta inválida da API PrimePag');
+      }
+
+      console.log('PIX gerado com sucesso!');
       return response.data;
     } catch (error) {
-      console.error('Erro ao gerar QR Code PIX:', error);
-      throw new Error('Falha ao gerar QR Code PIX');
+      console.error('=== ERRO AO GERAR PIX QR CODE ===');
+      console.error('Tipo do erro:', typeof error);
+      console.error('Erro completo:', error);
+      if (error instanceof Error) {
+        console.error('Message:', error.message);
+        console.error('Stack:', error.stack);
+      }
+      if (axios.isAxiosError(error)) {
+        console.error('Axios Error Details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: error.config?.url,
+          method: error.config?.method
+        });
+      }
+      throw new Error(`Falha ao gerar QR Code PIX: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
