@@ -49,6 +49,7 @@ export default function AdminWebhookPage() {
   const [debuggingTypes, setDebuggingTypes] = useState(false);
   const [debuggingRegister, setDebuggingRegister] = useState(false);
   const [scanningEndpoints, setScanningEndpoints] = useState(false);
+  const [analyzingWebhooks, setAnalyzingWebhooks] = useState(false);
 
   useEffect(() => {
     fetchWebhookConfig();
@@ -434,6 +435,42 @@ export default function AdminWebhookPage() {
       toast.error('Erro no escaneamento de endpoints');
     } finally {
       setScanningEndpoints(false);
+    }
+  };
+
+  const analyzeWebhooks = async () => {
+    setAnalyzingWebhooks(true);
+    try {
+      const response = await fetch('/api/debug/webhook-list-analysis');
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('🎉 Análise concluída!');
+        console.log('=== ANÁLISE DE WEBHOOKS ===');
+        console.log('Dados completos:', data);
+        console.log('Estrutura:', data.structure);
+        console.log('Webhooks encontrados:', data.webhooksCount);
+        console.log('Webhooks:', data.webhooks);
+        console.log('Resultados POST:', data.postResults);
+        
+        if (data.successfulPost) {
+          toast.success(`🎉 POST funcionou com: ${data.successfulPost.payload}!`);
+          console.log('Payload que funcionou:', data.successfulPost);
+        } else {
+          toast.error('❌ Nenhum formato de POST funcionou');
+        }
+        
+        toast.success(`📊 ${data.webhooksCount} webhook(s) existente(s) encontrado(s)`);
+      } else {
+        toast.error('❌ Falha na análise');
+        console.log('=== FALHA NA ANÁLISE ===');
+        console.log('Erro:', data);
+      }
+    } catch (error) {
+      console.error('Erro na análise de webhooks:', error);
+      toast.error('Erro na análise de webhooks');
+    } finally {
+      setAnalyzingWebhooks(false);
     }
   };
 
@@ -843,6 +880,27 @@ export default function AdminWebhookPage() {
               <>
                 <FaCog className="mr-2" />
                 Testar Escaneamento de Endpoints
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Botão para analisar webhooks */}
+        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <button
+            onClick={analyzeWebhooks}
+            disabled={analyzingWebhooks}
+            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
+          >
+            {analyzingWebhooks ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Testando...
+              </>
+            ) : (
+              <>
+                <FaCog className="mr-2" />
+                Testar Análise de Webhooks
               </>
             )}
           </button>
