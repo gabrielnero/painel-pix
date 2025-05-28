@@ -161,14 +161,36 @@ function GeneratePixContent() {
           setHasActivePix(false);
           
           // Calcular valor creditado (80% do valor original)
-          // Usar o valor do payment ou do pixData atual
           const originalAmount = payment.value_cents ? (payment.value_cents / 100) : (pixData?.amount || 0);
           const creditedAmount = originalAmount * 0.8;
           
+          // Notificação de sucesso mais elaborada
           toast.success(
-            `🎉 Pagamento aprovado! R$ ${creditedAmount.toFixed(2).replace('.', ',')} creditados na sua carteira (Taxa: 20%)`, 
-            { duration: 8000 }
+            `🎉 PAGAMENTO APROVADO!\n💰 R$ ${creditedAmount.toFixed(2).replace('.', ',')} creditados na sua carteira\n📊 Taxa aplicada: 20%\n🔄 Redirecionando em 5 segundos...`, 
+            { 
+              duration: 5000,
+              style: {
+                background: '#10B981',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                padding: '16px',
+                borderRadius: '12px',
+                boxShadow: '0 10px 25px rgba(16, 185, 129, 0.3)'
+              }
+            }
           );
+          
+          // Forçar atualização do saldo no header
+          // Disparar evento customizado para atualizar UserInfo
+          window.dispatchEvent(new CustomEvent('balanceUpdated', {
+            detail: { newBalance: creditedAmount }
+          }));
+          
+          // Redirecionamento automático após 5 segundos
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 5000);
           
           // Garantir que não haverá mais verificações
           return;
@@ -311,13 +333,40 @@ function GeneratePixContent() {
       const data = await response.json();
 
       if (data.success) {
-        toast.success(data.message);
-        
-        // Se algum pagamento foi aprovado, recarregar a página
+        // Se algum pagamento foi aprovado, mostrar notificação especial
         if (data.stats.paid > 0) {
-          // Verificar PIX ativo novamente
-          checkActivePix();
+          // Calcular total creditado (assumindo 80% de cada pagamento)
+          const paidPayments = data.results.filter((result: any) => result.newStatus === 'paid');
+          
+          toast.success(
+            `🎉 ${data.stats.paid} pagamento(s) aprovado(s)!\n💰 Saldo atualizado na sua carteira\n🔄 Redirecionando em 3 segundos...`, 
+            { 
+              duration: 3000,
+              style: {
+                background: '#10B981',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                padding: '16px',
+                borderRadius: '12px',
+                boxShadow: '0 10px 25px rgba(16, 185, 129, 0.3)'
+              }
+            }
+          );
+          
+          // Disparar evento para atualizar saldo no header
+          window.dispatchEvent(new CustomEvent('balanceUpdated'));
+          
+          // Redirecionamento automático após 3 segundos
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 3000);
+        } else {
+          toast.success(data.message);
         }
+        
+        // Verificar PIX ativo novamente
+        checkActivePix();
       } else {
         toast.error(data.message || 'Erro ao sincronizar status');
       }

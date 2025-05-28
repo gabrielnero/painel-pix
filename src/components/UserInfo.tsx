@@ -19,6 +19,18 @@ export default function UserInfo() {
 
   useEffect(() => {
     fetchUserInfo();
+    
+    // Listener para atualização de saldo
+    const handleBalanceUpdate = (event: CustomEvent) => {
+      fetchUserInfo(); // Recarregar informações do usuário
+    };
+    
+    window.addEventListener('balanceUpdated', handleBalanceUpdate as EventListener);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('balanceUpdated', handleBalanceUpdate as EventListener);
+    };
   }, []);
 
   const fetchUserInfo = async () => {
