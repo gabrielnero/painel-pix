@@ -50,6 +50,9 @@ interface PrimepagAccount {
   id: number;
   name: string;
   data?: {
+    account?: {
+      value_cents: number;
+    };
     account_balance?: {
       available_value_cents: number;
       blocked_value_cents: number;
@@ -252,9 +255,8 @@ export default function AdminDashboard() {
       const accountKey = `account-${account.id}-${account.name}`;
       
       // Verificar se os dados da conta são válidos
-      const hasValidBalance = account.data?.account_balance && 
-        typeof account.data.account_balance === 'object' &&
-        typeof account.data.account_balance.available_value_cents === 'number';
+      const hasValidBalance = account.data?.account && 
+        typeof account.data.account.value_cents === 'number';
       
       return (
         <div key={accountKey} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -263,13 +265,13 @@ export default function AdminDashboard() {
               {account.name || `Conta ${account.id}`}
             </h3>
             <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-              account.data?.status === 'active' 
+              hasValidBalance
                 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                 : account.error
                 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                 : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
             }`} suppressHydrationWarning>
-              {account.error ? 'Erro' : account.data?.status || 'Desconhecido'}
+              {account.error ? 'Erro' : hasValidBalance ? 'Ativo' : 'Desconhecido'}
             </div>
           </div>
 
@@ -283,19 +285,13 @@ export default function AdminDashboard() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-gray-400">Saldo Disponível:</span>
                 <span className="text-lg font-bold text-green-600 dark:text-green-400" suppressHydrationWarning>
-                  R$ {formatCurrency(account.data?.account_balance?.available_value_cents || 0)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Saldo Bloqueado:</span>
-                <span className="text-sm font-medium text-orange-600 dark:text-orange-400" suppressHydrationWarning>
-                  R$ {formatCurrency(account.data?.account_balance?.blocked_value_cents || 0)}
+                  R$ {formatCurrency(account.data?.account?.value_cents || 0)}
                 </span>
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
                 <span className="text-sm font-medium text-gray-900 dark:text-white">Saldo Total:</span>
                 <span className="text-lg font-bold text-blue-600 dark:text-blue-400" suppressHydrationWarning>
-                  R$ {formatCurrency(account.data?.account_balance?.total_value_cents || 0)}
+                  R$ {formatCurrency(account.data?.account?.value_cents || 0)}
                 </span>
               </div>
             </div>
