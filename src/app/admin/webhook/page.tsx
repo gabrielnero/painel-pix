@@ -50,6 +50,7 @@ export default function AdminWebhookPage() {
   const [debuggingRegister, setDebuggingRegister] = useState(false);
   const [scanningEndpoints, setScanningEndpoints] = useState(false);
   const [analyzingWebhooks, setAnalyzingWebhooks] = useState(false);
+  const [detailedLogging, setDetailedLogging] = useState(false);
 
   useEffect(() => {
     fetchWebhookConfig();
@@ -471,6 +472,58 @@ export default function AdminWebhookPage() {
       toast.error('Erro na análise de webhooks');
     } finally {
       setAnalyzingWebhooks(false);
+    }
+  };
+
+  const detailedWebhookLog = async () => {
+    setDetailedLogging(true);
+    try {
+      const response = await fetch('/api/debug/webhook-detailed-log');
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('🎉 Log detalhado concluído!');
+        console.log('=== LOG DETALHADO COMPLETO ===');
+        console.log('Dados:', data);
+        
+        if (data.webhooks && data.webhooks.length > 0) {
+          console.log('=== WEBHOOK EXISTENTE ===');
+          data.webhooks.forEach((webhook: any, index: number) => {
+            console.log(`Webhook ${index + 1}:`, webhook);
+          });
+          toast.success(`📊 ${data.webhooks.length} webhook(s) analisado(s)`);
+        }
+        
+        if (data.postSuccess) {
+          toast.success('🎉 POST funcionou!');
+          console.log('POST Response:', data.postResponse);
+        } else if (data.postError) {
+          console.log('=== ERRO DO POST ===');
+          console.log('Status:', data.postError.status);
+          console.log('Data:', data.postError.data);
+          console.log('Message:', data.postError.message);
+          
+          if (data.postError.status === 400) {
+            toast.error('❌ Erro 400: Formato do payload incorreto');
+          } else if (data.postError.status === 403) {
+            toast.error('❌ Erro 403: Sem permissão para criar webhooks');
+          } else if (data.postError.status === 404) {
+            toast.error('❌ Erro 404: Endpoint não existe para POST');
+          } else if (data.postError.status === 405) {
+            toast.error('❌ Erro 405: POST não permitido');
+          } else {
+            toast.error(`❌ Erro ${data.postError.status}: ${data.postError.message}`);
+          }
+        }
+      } else {
+        toast.error('❌ Falha no log detalhado');
+        console.log('Erro:', data);
+      }
+    } catch (error) {
+      console.error('Erro no log detalhado:', error);
+      toast.error('Erro no log detalhado');
+    } finally {
+      setDetailedLogging(false);
     }
   };
 
@@ -901,6 +954,27 @@ export default function AdminWebhookPage() {
               <>
                 <FaCog className="mr-2" />
                 Testar Análise de Webhooks
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Botão para log detalhado */}
+        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <button
+            onClick={detailedWebhookLog}
+            disabled={detailedLogging}
+            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
+          >
+            {detailedLogging ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Testando...
+              </>
+            ) : (
+              <>
+                <FaCog className="mr-2" />
+                Testar Log Detalhado
               </>
             )}
           </button>
