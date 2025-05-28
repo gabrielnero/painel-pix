@@ -418,6 +418,16 @@ class PrimepagService {
     try {
       console.log(`=== CONSULTANDO SALDO CONTA ${accountNumber} ===`);
       
+      // Verificar se a conta está habilitada
+      const accountConfig = await getPrimepagAccountConfig(accountNumber);
+      if (!accountConfig.enabled) {
+        throw new Error(`Conta ${accountNumber} está desabilitada`);
+      }
+      
+      if (!accountConfig.clientId || !accountConfig.clientSecret) {
+        throw new Error(`Credenciais da conta ${accountNumber} não configuradas`);
+      }
+      
       const token = await this.ensureAuthenticated(accountNumber);
       
       const response = await axios.get(
@@ -440,6 +450,17 @@ class PrimepagService {
           statusText: error.response?.statusText,
           data: error.response?.data
         });
+        
+        // Tratar erros específicos
+        if (error.response?.status === 401) {
+          throw new Error(`Credenciais inválidas para conta ${accountNumber} - Verifique Client ID e Client Secret`);
+        } else if (error.response?.status === 403) {
+          throw new Error(`Acesso negado para conta ${accountNumber} - Conta pode estar suspensa`);
+        } else if (error.response?.status === 404) {
+          throw new Error(`Endpoint não encontrado - Verifique a URL da API`);
+        } else if (error.response?.status && error.response.status >= 500) {
+          throw new Error(`Erro interno do servidor PrimePag (${error.response.status})`);
+        }
       }
       throw new Error(`Erro ao consultar saldo da conta ${accountNumber}: ${error instanceof Error ? error.message : String(error)}`);
     }

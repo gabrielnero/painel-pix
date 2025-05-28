@@ -51,6 +51,28 @@ export async function GET(request: NextRequest) {
     // Recuperar saldo da conta 2
     try {
       console.log('Consultando saldo da conta 2...');
+      console.log('Verificando configurações da conta 2...');
+      
+      // Verificar configurações antes de tentar autenticar
+      const { getPrimepagAccountConfig } = await import('@/lib/config');
+      const account2Config = await getPrimepagAccountConfig(2);
+      console.log('Configurações da conta 2:', {
+        enabled: account2Config.enabled,
+        hasClientId: !!account2Config.clientId,
+        hasClientSecret: !!account2Config.clientSecret,
+        name: account2Config.name,
+        clientIdLength: account2Config.clientId?.length || 0,
+        clientSecretLength: account2Config.clientSecret?.length || 0
+      });
+      
+      if (!account2Config.enabled) {
+        throw new Error('Conta 2 está desabilitada nas configurações');
+      }
+      
+      if (!account2Config.clientId || !account2Config.clientSecret) {
+        throw new Error('Credenciais da conta 2 não estão configuradas');
+      }
+      
       const account2Balance = await primepagService.getAccountBalance(2);
       accounts.push({
         id: 2,

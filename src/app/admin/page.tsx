@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { 
   FaUsers, 
@@ -93,28 +93,45 @@ export default function AdminDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  const fetchPrimepagBalance = async () => {
+  const fetchPrimepagBalance = useCallback(async () => {
     setLoadingBalance(true);
     try {
       const response = await fetch('/api/admin/primepag-balance');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
 
       if (data.success && Array.isArray(data.accounts)) {
-        // Validar e sanitizar dados das contas
-        const validatedAccounts = data.accounts.map((account: any) => ({
-          id: account.id || 0,
-          name: account.name || 'Conta Desconhecida',
-          data: account.data && typeof account.data === 'object' ? {
-            ...account.data,
-            account_balance: account.data.account_balance && typeof account.data.account_balance === 'object' ? {
-              available_value_cents: Number(account.data.account_balance.available_value_cents) || 0,
-              blocked_value_cents: Number(account.data.account_balance.blocked_value_cents) || 0,
-              total_value_cents: Number(account.data.account_balance.total_value_cents) || 0
+        // Validar e sanitizar dados das contas com verificações mais rigorosas
+        const validatedAccounts = data.accounts.map((account: any, index: number) => {
+          // Garantir que account é um objeto válido
+          if (!account || typeof account !== 'object') {
+            return {
+              id: index + 1,
+              name: `Conta ${index + 1}`,
+              data: null,
+              error: 'Dados da conta inválidos'
+            };
+          }
+
+          return {
+            id: Number(account.id) || (index + 1),
+            name: String(account.name || `Conta ${index + 1}`),
+            data: account.data && typeof account.data === 'object' ? {
+              ...account.data,
+              account_balance: account.data.account_balance && typeof account.data.account_balance === 'object' ? {
+                available_value_cents: Number(account.data.account_balance.available_value_cents) || 0,
+                blocked_value_cents: Number(account.data.account_balance.blocked_value_cents) || 0,
+                total_value_cents: Number(account.data.account_balance.total_value_cents) || 0
+              } : null,
+              status: String(account.data.status || 'unknown')
             } : null,
-            status: account.data.status || 'unknown'
-          } : null,
-          error: account.error || null
-        }));
+            error: account.error ? String(account.error) : null
+          };
+        });
         
         setPrimepagAccounts(validatedAccounts);
         console.log('✅ Saldos PrimePag carregados:', validatedAccounts);
@@ -125,12 +142,12 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error('❌ Erro ao carregar saldos PrimePag:', error);
-      toast.error('Erro ao carregar saldos PrimePag');
+      toast.error(`Erro ao carregar saldos PrimePag: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
       setPrimepagAccounts([]);
     } finally {
       setLoadingBalance(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -166,7 +183,7 @@ export default function AdminDashboard() {
 
     fetchDashboardData();
     fetchPrimepagBalance();
-  }, []);
+  }, [fetchPrimepagBalance]);
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -193,6 +210,93 @@ export default function AdminDashboard() {
     if (minutes < 60) return `${minutes}m atrás`;
     return `${hours}h atrás`;
   };
+
+  const formatCurrency = useCallback((cents: number): string => {
+    try {
+      const value = (cents || 0) / 100;
+      return value.toFixed(2).replace('.', ',');
+    } catch (error) {
+      console.error('Erro ao formatar moeda:', error);
+      return '0,00';
+    }
+  }, []);
+
+  const primepagBalanceSection = useMemo(() => {
+    if (primepagAccounts.length === 0) {
+      return (
+        <div className="col-span-full bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
+          {loadingBalance ? (
+            <div className="flex flex-col items-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
+              <p className="text-gray-600 dark:text-gray-400">Carregando saldos...</p>
+            </div>
+          ) : (
+            <>
+              <FaExclamationTriangle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
+              <p className="text-gray-600 dark:text-gray-400">
+                Nenhuma conta PrimePag configurada ou erro ao carregar saldos
+              </p>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    return primepagAccounts.map((account) => {
+      const accountKey = `account-${account.id}-${account.name}`;
+      
+      return (
+        <div key={accountKey} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              {account.name || `Conta ${account.id}`}
+            </h3>
+            <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+              account.data?.status === 'active' 
+                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                : account.error
+                ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+            }`}>
+              {account.error ? 'Erro' : account.data?.status || 'Desconhecido'}
+            </div>
+          </div>
+
+          {account.error ? (
+            <div className="text-red-600 dark:text-red-400 text-sm">
+              <p className="font-medium">Erro ao carregar saldo:</p>
+              <p className="mt-1 break-words">{account.error}</p>
+            </div>
+          ) : account.data?.account_balance ? (
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Saldo Disponível:</span>
+                <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                  R$ {formatCurrency(account.data.account_balance.available_value_cents)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Saldo Bloqueado:</span>
+                <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
+                  R$ {formatCurrency(account.data.account_balance.blocked_value_cents)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
+                <span className="text-sm font-medium text-gray-900 dark:text-white">Saldo Total:</span>
+                <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                  R$ {formatCurrency(account.data.account_balance.total_value_cents)}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="text-gray-500 dark:text-gray-400 text-sm">
+              Dados de saldo não disponíveis
+            </div>
+          )}
+        </div>
+      );
+    });
+  }, [primepagAccounts, loadingBalance, formatCurrency]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -340,72 +444,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {primepagAccounts.length > 0 ? primepagAccounts.map((account) => (
-              <div key={`account-${account.id}`} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {account.name || `Conta ${account.id}`}
-                  </h3>
-                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    account.data?.status === 'active' 
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : account.error
-                      ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                  }`}>
-                    {account.error ? 'Erro' : account.data?.status || 'Desconhecido'}
-                  </div>
-                </div>
-
-                {account.error ? (
-                  <div className="text-red-600 dark:text-red-400 text-sm">
-                    <p className="font-medium">Erro ao carregar saldo:</p>
-                    <p className="mt-1 break-words">{account.error}</p>
-                  </div>
-                ) : account.data?.account_balance ? (
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Saldo Disponível:</span>
-                      <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                        R$ {((account.data.account_balance.available_value_cents || 0) / 100).toFixed(2).replace('.', ',')}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Saldo Bloqueado:</span>
-                      <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
-                        R$ {((account.data.account_balance.blocked_value_cents || 0) / 100).toFixed(2).replace('.', ',')}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">Saldo Total:</span>
-                      <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                        R$ {((account.data.account_balance.total_value_cents || 0) / 100).toFixed(2).replace('.', ',')}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-gray-500 dark:text-gray-400 text-sm">
-                    Dados de saldo não disponíveis
-                  </div>
-                )}
-              </div>
-            )) : (
-              <div className="col-span-full bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
-                {loadingBalance ? (
-                  <div className="flex flex-col items-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
-                    <p className="text-gray-600 dark:text-gray-400">Carregando saldos...</p>
-                  </div>
-                ) : (
-                  <>
-                    <FaExclamationTriangle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400">
-                      Nenhuma conta PrimePag configurada ou erro ao carregar saldos
-                    </p>
-                  </>
-                )}
-              </div>
-            )}
+            {primepagBalanceSection}
           </div>
         </div>
 
