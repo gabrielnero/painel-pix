@@ -46,6 +46,7 @@ export default function AdminWebhookPage() {
   const [testingEndpoints, setTestingEndpoints] = useState(false);
   const [testingWebhookPost, setTestingWebhookPost] = useState(false);
   const [testingWebhookTypes, setTestingWebhookTypes] = useState(false);
+  const [debuggingTypes, setDebuggingTypes] = useState(false);
 
   useEffect(() => {
     fetchWebhookConfig();
@@ -323,6 +324,42 @@ export default function AdminWebhookPage() {
       toast.error('Erro ao consultar tipos de webhook');
     } finally {
       setTestingWebhookTypes(false);
+    }
+  };
+
+  const debugWebhookTypes = async () => {
+    setDebuggingTypes(true);
+    try {
+      const response = await fetch('/api/debug/webhook-types-detail');
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Detalhes dos tipos obtidos!');
+        console.log('=== DETALHES DOS TIPOS DE WEBHOOK ===');
+        console.log('Resposta completa:', data);
+        console.log('Tipos disponíveis:', data.webhookTypes);
+        console.log('Lista formatada:', data.typesList);
+        
+        // Mostrar cada tipo individualmente
+        if (data.typesList && data.typesList.length > 0) {
+          data.typesList.forEach((item: any) => {
+            console.log(`Tipo ${item.index + 1}:`, item.type);
+            console.log(`Nome: ${item.name}`);
+            console.log(`Descrição: ${item.description}`);
+            console.log('---');
+          });
+          
+          toast.success(`${data.typesCount} tipos encontrados! Veja o console para detalhes.`);
+        }
+      } else {
+        toast.error(data.message || 'Erro ao obter detalhes dos tipos');
+        console.error('Erro nos detalhes:', data);
+      }
+    } catch (error) {
+      console.error('Erro ao obter detalhes dos tipos:', error);
+      toast.error('Erro ao obter detalhes dos tipos');
+    } finally {
+      setDebuggingTypes(false);
     }
   };
 
@@ -661,6 +698,27 @@ export default function AdminWebhookPage() {
             className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
           >
             {testingWebhookTypes ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Testando...
+              </>
+            ) : (
+              <>
+                <FaCog className="mr-2" />
+                Testar Tipos de Webhook
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Botão para debugar tipos de webhook */}
+        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <button
+            onClick={debugWebhookTypes}
+            disabled={debuggingTypes}
+            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
+          >
+            {debuggingTypes ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                 Testando...
