@@ -11,7 +11,6 @@ import {
   FaTimes, 
   FaPlay,
   FaCog,
-  FaExternalLinkAlt,
   FaClipboard
 } from 'react-icons/fa';
 
@@ -42,16 +41,6 @@ export default function AdminWebhookPage() {
   const [testReferenceCode, setTestReferenceCode] = useState('');
   const [testValue, setTestValue] = useState('2.00');
   const [configuring, setConfiguring] = useState(false);
-  const [configuringAccount1, setConfiguringAccount1] = useState(false);
-  const [testingEndpoints, setTestingEndpoints] = useState(false);
-  const [testingWebhookPost, setTestingWebhookPost] = useState(false);
-  const [testingWebhookTypes, setTestingWebhookTypes] = useState(false);
-  const [debuggingTypes, setDebuggingTypes] = useState(false);
-  const [debuggingRegister, setDebuggingRegister] = useState(false);
-  const [scanningEndpoints, setScanningEndpoints] = useState(false);
-  const [analyzingWebhooks, setAnalyzingWebhooks] = useState(false);
-  const [detailedLogging, setDetailedLogging] = useState(false);
-  const [finalSolution, setFinalSolution] = useState(false);
 
   useEffect(() => {
     fetchWebhookConfig();
@@ -89,8 +78,6 @@ export default function AdminWebhookPage() {
 
       const data = await response.json();
 
-      console.log('Resultado completo da configuração:', data);
-
       if (data.success) {
         toast.success(data.message);
         
@@ -105,22 +92,17 @@ export default function AdminWebhookPage() {
               }
             } else {
               toast.error(`❌ Conta ${result.account}: ${result.message}`);
-              console.error(`Erro detalhado da conta ${result.account}:`, result);
             }
           });
         }
       } else {
         toast.error(data.message || 'Erro ao configurar webhook');
-        console.error('Erro na configuração:', data);
         
-        // Mostrar detalhes dos erros mesmo quando success é false
+        // Mostrar detalhes dos erros
         if (data.results) {
           data.results.forEach((result: any) => {
             if (!result.success) {
               toast.error(`❌ Conta ${result.account}: ${result.message}`);
-              if (result.details) {
-                console.error(`Detalhes do erro da conta ${result.account}:`, result.details);
-              }
             }
           });
         }
@@ -130,52 +112,6 @@ export default function AdminWebhookPage() {
       toast.error('Erro ao configurar webhook automaticamente');
     } finally {
       setConfiguring(false);
-    }
-  };
-
-  const configureWebhookAccount1 = async () => {
-    setConfiguringAccount1(true);
-    try {
-      const response = await fetch('/api/admin/configure-webhook', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ account: 1 }) // Apenas conta 1
-      });
-
-      const data = await response.json();
-      console.log('Resultado da configuração da Conta 1:', data);
-
-      if (data.success) {
-        toast.success('Webhook configurado com sucesso na Conta 1!');
-        if (data.results && data.results[0]) {
-          const result = data.results[0];
-          if (result.action === 'already_configured') {
-            toast.success('Webhook já estava configurado na Conta 1');
-          }
-        }
-      } else {
-        // Log detalhado do erro
-        console.error('Erro na configuração da Conta 1:', data);
-        if (data.results && data.results[0]) {
-          const result = data.results[0];
-          console.error('Detalhes do erro da Conta 1:', result);
-          console.error('Mensagem de erro:', result.message);
-          console.error('Erro específico:', result.error);
-          if (result.details) {
-            console.error('Detalhes adicionais:', result.details);
-          }
-          toast.error(`Erro na Conta 1: ${result.message || result.error}`);
-        } else {
-          toast.error(data.message || 'Erro ao configurar webhook na Conta 1');
-        }
-      }
-    } catch (error) {
-      console.error('Erro ao configurar webhook na Conta 1:', error);
-      toast.error('Erro ao configurar webhook na Conta 1');
-    } finally {
-      setConfiguringAccount1(false);
     }
   };
 
@@ -218,353 +154,6 @@ export default function AdminWebhookPage() {
       toast.error('Erro ao executar teste do webhook');
     } finally {
       setTestLoading(false);
-    }
-  };
-
-  const testPrimepagEndpoints = async () => {
-    setTestingEndpoints(true);
-    try {
-      const response = await fetch('/api/test/primepag-endpoints');
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('Teste de endpoints concluído!');
-        console.log('Resultados dos endpoints:', data);
-        
-        // Mostrar resultados detalhados
-        data.results.forEach((result: any) => {
-          if (result.success) {
-            const workingCount = result.workingEndpoints?.length || 0;
-            const totalCount = result.endpoints?.length || 0;
-            toast.success(`Conta ${result.account}: ${workingCount}/${totalCount} endpoints funcionando`);
-            
-            // Log dos endpoints que funcionam
-            if (result.workingEndpoints?.length > 0) {
-              console.log(`Endpoints funcionando na conta ${result.account}:`, 
-                result.workingEndpoints.map((e: any) => e.endpoint));
-            }
-          } else {
-            toast.error(`Erro na conta ${result.account}: ${result.message}`);
-          }
-        });
-      } else {
-        toast.error(data.message || 'Erro ao testar endpoints');
-      }
-    } catch (error) {
-      console.error('Erro ao testar endpoints:', error);
-      toast.error('Erro ao testar endpoints da PrimePag');
-    } finally {
-      setTestingEndpoints(false);
-    }
-  };
-
-  const testWebhookPost = async () => {
-    setTestingWebhookPost(true);
-    try {
-      const response = await fetch('/api/test/webhook-post-test', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('Teste de POST webhook concluído com sucesso!');
-        console.log('Resultados do POST webhook:', data);
-        
-        // Mostrar resultados detalhados
-        data.results.forEach((result: any) => {
-          if (result.success) {
-            toast.success(`✅ Webhook criado na Conta ${result.account} com ${result.successfulPayload}!`);
-            console.log(`Payload que funcionou:`, result.successfulPayload);
-            console.log(`Dados do webhook criado:`, result.testResults.find((t: any) => t.success)?.data);
-          } else {
-            toast.error(`❌ Falha na Conta ${result.account}`);
-            console.log(`Detalhes dos testes:`, result.testResults);
-          }
-        });
-      } else {
-        toast.error(data.message || 'Erro ao testar POST webhook');
-        console.error('Erro no teste:', data);
-      }
-    } catch (error) {
-      console.error('Erro ao testar POST webhook:', error);
-      toast.error('Erro ao testar POST webhook');
-    } finally {
-      setTestingWebhookPost(false);
-    }
-  };
-
-  const testWebhookTypes = async () => {
-    setTestingWebhookTypes(true);
-    try {
-      const response = await fetch('/api/test/webhook-types');
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('Consulta de tipos de webhook concluída!');
-        console.log('Tipos de webhook disponíveis:', data);
-        
-        // Mostrar resultados detalhados
-        data.results.forEach((result: any) => {
-          if (result.success) {
-            const workingCount = result.endpointResults?.filter((e: any) => e.success).length || 0;
-            const totalCount = result.endpointResults?.length || 0;
-            toast.success(`✅ Conta ${result.account}: ${workingCount}/${totalCount} endpoints de tipos funcionando`);
-            
-            // Log dos tipos disponíveis
-            if (result.availableTypes?.length > 0) {
-              console.log(`Tipos disponíveis na conta ${result.account}:`, result.availableTypes);
-            }
-          } else {
-            toast.error(`❌ Erro na conta ${result.account}: ${result.message}`);
-          }
-        });
-      } else {
-        toast.error(data.message || 'Erro ao consultar tipos de webhook');
-      }
-    } catch (error) {
-      console.error('Erro ao consultar tipos de webhook:', error);
-      toast.error('Erro ao consultar tipos de webhook');
-    } finally {
-      setTestingWebhookTypes(false);
-    }
-  };
-
-  const debugWebhookTypes = async () => {
-    setDebuggingTypes(true);
-    try {
-      const response = await fetch('/api/debug/webhook-types-detail');
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('Detalhes dos tipos obtidos!');
-        console.log('=== DETALHES DOS TIPOS DE WEBHOOK ===');
-        console.log('Resposta completa:', data);
-        console.log('Tipos disponíveis:', data.webhookTypes);
-        console.log('Lista formatada:', data.typesList);
-        
-        // Mostrar cada tipo individualmente
-        if (data.typesList && data.typesList.length > 0) {
-          data.typesList.forEach((item: any) => {
-            console.log(`Tipo ${item.index + 1}:`, item.type);
-            console.log(`Nome: ${item.name}`);
-            console.log(`Descrição: ${item.description}`);
-            console.log('---');
-          });
-          
-          toast.success(`${data.typesCount} tipos encontrados! Veja o console para detalhes.`);
-        }
-      } else {
-        toast.error(data.message || 'Erro ao obter detalhes dos tipos');
-        console.error('Erro nos detalhes:', data);
-      }
-    } catch (error) {
-      console.error('Erro ao obter detalhes dos tipos:', error);
-      toast.error('Erro ao obter detalhes dos tipos');
-    } finally {
-      setDebuggingTypes(false);
-    }
-  };
-
-  const debugWebhookRegister = async () => {
-    setDebuggingRegister(true);
-    try {
-      const response = await fetch('/api/debug/webhook-register-debug', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('🎉 WEBHOOK REGISTRADO COM SUCESSO!');
-        console.log('=== SUCESSO NO REGISTRO ===');
-        console.log('Dados completos:', data);
-        console.log('Payload que funcionou:', data.payload);
-        console.log('Resposta da PrimePag:', data.response);
-        
-        if (data.attempt) {
-          toast.success(`✅ Funcionou com payload alternativo ${data.attempt}!`);
-        }
-      } else {
-        toast.error('❌ Falha no registro do webhook');
-        console.log('=== FALHA NO REGISTRO ===');
-        console.log('Erro completo:', data);
-        console.log('Payload testado:', data.payload);
-        console.log('Erro da API:', data.error);
-      }
-    } catch (error) {
-      console.error('Erro no debug de registro:', error);
-      toast.error('Erro no debug de registro');
-    } finally {
-      setDebuggingRegister(false);
-    }
-  };
-
-  const scanWebhookEndpoints = async () => {
-    setScanningEndpoints(true);
-    try {
-      const response = await fetch('/api/debug/webhook-endpoints-scan');
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success(`🎉 ${data.summary.working} endpoint(s) funcionando!`);
-        console.log('=== ESCANEAMENTO DE ENDPOINTS ===');
-        console.log('Resultados completos:', data);
-        console.log('Resumo:', data.summary);
-        
-        if (data.summary.workingEndpoints.length > 0) {
-          console.log('Endpoints que funcionam:');
-          data.summary.workingEndpoints.forEach((ep: any) => {
-            console.log(`  ✅ ${ep.method} ${ep.endpoint}: ${ep.status}`);
-            toast.success(`✅ ${ep.method} ${ep.endpoint} funciona!`);
-          });
-        }
-        
-        if (data.summary.methodNotAllowed > 0) {
-          toast.success(`ℹ️ ${data.summary.methodNotAllowed} endpoint(s) com 405 (Method Not Allowed)`);
-        }
-      } else {
-        toast.error('❌ Nenhum endpoint funcionando');
-        console.log('=== FALHA NO ESCANEAMENTO ===');
-        console.log('Erro:', data);
-      }
-    } catch (error) {
-      console.error('Erro no escaneamento de endpoints:', error);
-      toast.error('Erro no escaneamento de endpoints');
-    } finally {
-      setScanningEndpoints(false);
-    }
-  };
-
-  const analyzeWebhooks = async () => {
-    setAnalyzingWebhooks(true);
-    try {
-      const response = await fetch('/api/debug/webhook-list-analysis');
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('🎉 Análise concluída!');
-        console.log('=== ANÁLISE DE WEBHOOKS ===');
-        console.log('Dados completos:', data);
-        console.log('Estrutura:', data.structure);
-        console.log('Webhooks encontrados:', data.webhooksCount);
-        console.log('Webhooks:', data.webhooks);
-        console.log('Resultados POST:', data.postResults);
-        
-        if (data.successfulPost) {
-          toast.success(`🎉 POST funcionou com: ${data.successfulPost.payload}!`);
-          console.log('Payload que funcionou:', data.successfulPost);
-        } else {
-          toast.error('❌ Nenhum formato de POST funcionou');
-        }
-        
-        toast.success(`📊 ${data.webhooksCount} webhook(s) existente(s) encontrado(s)`);
-      } else {
-        toast.error('❌ Falha na análise');
-        console.log('=== FALHA NA ANÁLISE ===');
-        console.log('Erro:', data);
-      }
-    } catch (error) {
-      console.error('Erro na análise de webhooks:', error);
-      toast.error('Erro na análise de webhooks');
-    } finally {
-      setAnalyzingWebhooks(false);
-    }
-  };
-
-  const detailedWebhookLog = async () => {
-    setDetailedLogging(true);
-    try {
-      const response = await fetch('/api/debug/webhook-detailed-log');
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('🎉 Log detalhado concluído!');
-        console.log('=== LOG DETALHADO COMPLETO ===');
-        console.log('Dados:', data);
-        
-        if (data.webhooks && data.webhooks.length > 0) {
-          console.log('=== WEBHOOK EXISTENTE ===');
-          data.webhooks.forEach((webhook: any, index: number) => {
-            console.log(`Webhook ${index + 1}:`, webhook);
-          });
-          toast.success(`📊 ${data.webhooks.length} webhook(s) analisado(s)`);
-        }
-        
-        if (data.postSuccess) {
-          toast.success('🎉 POST funcionou!');
-          console.log('POST Response:', data.postResponse);
-        } else if (data.postError) {
-          console.log('=== ERRO DO POST ===');
-          console.log('Status:', data.postError.status);
-          console.log('Data:', data.postError.data);
-          console.log('Message:', data.postError.message);
-          
-          if (data.postError.status === 400) {
-            toast.error('❌ Erro 400: Formato do payload incorreto');
-          } else if (data.postError.status === 403) {
-            toast.error('❌ Erro 403: Sem permissão para criar webhooks');
-          } else if (data.postError.status === 404) {
-            toast.error('❌ Erro 404: Endpoint não existe para POST');
-          } else if (data.postError.status === 405) {
-            toast.error('❌ Erro 405: POST não permitido');
-          } else {
-            toast.error(`❌ Erro ${data.postError.status}: ${data.postError.message}`);
-          }
-        }
-      } else {
-        toast.error('❌ Falha no log detalhado');
-        console.log('Erro:', data);
-      }
-    } catch (error) {
-      console.error('Erro no log detalhado:', error);
-      toast.error('Erro no log detalhado');
-    } finally {
-      setDetailedLogging(false);
-    }
-  };
-
-  const testFinalSolution = async () => {
-    setFinalSolution(true);
-    try {
-      const response = await fetch('/api/debug/webhook-final-solution', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('🎉 WEBHOOK CRIADO COM SUCESSO!');
-        console.log('=== SOLUÇÃO FINAL FUNCIONOU ===');
-        console.log('Dados completos:', data);
-        console.log('Endpoint que funcionou:', data.endpoint);
-        console.log('Payload usado:', data.payload);
-        console.log('Resposta da PrimePag:', data.response);
-        
-        toast.success(`✅ Endpoint: ${data.endpoint}`);
-        toast.success(`🔑 Webhook Type ID: ${data.webhookTypeId}`);
-      } else {
-        toast.error('❌ Solução final falhou');
-        console.log('=== SOLUÇÃO FINAL FALHOU ===');
-        console.log('Erro:', data);
-        console.log('Payload testado:', data.payload);
-        console.log('Endpoints testados:', data.testedEndpoints);
-        
-        if (data.webhookTypeId) {
-          toast.success(`🔑 ID do tipo encontrado: ${data.webhookTypeId}`);
-        }
-      }
-    } catch (error) {
-      console.error('Erro na solução final:', error);
-      toast.error('Erro na solução final');
-    } finally {
-      setFinalSolution(false);
     }
   };
 
@@ -749,6 +338,35 @@ export default function AdminWebhookPage() {
           </div>
         )}
 
+        {/* Configuração Automática */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            Configuração Automática
+          </h2>
+          
+          <p className="text-gray-600 dark:text-gray-300 mb-4">
+            Configure o webhook automaticamente na PrimePag usando a API.
+          </p>
+
+          <button
+            onClick={configureWebhook}
+            disabled={configuring}
+            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
+          >
+            {configuring ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Configurando...
+              </>
+            ) : (
+              <>
+                <FaCog className="mr-2" />
+                Configurar Webhook Automaticamente
+              </>
+            )}
+          </button>
+        </div>
+
         {/* Teste do Webhook */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
@@ -809,237 +427,6 @@ export default function AdminWebhookPage() {
               </p>
             </div>
           )}
-        </div>
-
-        {/* Botão para configurar automaticamente o webhook */}
-        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <button
-            onClick={configureWebhook}
-            disabled={configuring}
-            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
-          >
-            {configuring ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Configurando...
-              </>
-            ) : (
-              <>
-                <FaCog className="mr-2" />
-                Configurar Webhook Automaticamente
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Botão para configurar webhook apenas na Conta 1 */}
-        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <button
-            onClick={configureWebhookAccount1}
-            disabled={configuringAccount1}
-            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
-          >
-            {configuringAccount1 ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Configurando...
-              </>
-            ) : (
-              <>
-                <FaCog className="mr-2" />
-                Configurar Webhook na Conta 1
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Botão para testar endpoints da PrimePag */}
-        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <button
-            onClick={testPrimepagEndpoints}
-            disabled={testingEndpoints}
-            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
-          >
-            {testingEndpoints ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Testando...
-              </>
-            ) : (
-              <>
-                <FaCog className="mr-2" />
-                Testar Endpoints da PrimePag
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Botão para testar POST webhook */}
-        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <button
-            onClick={testWebhookPost}
-            disabled={testingWebhookPost}
-            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
-          >
-            {testingWebhookPost ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Testando...
-              </>
-            ) : (
-              <>
-                <FaCog className="mr-2" />
-                Testar POST Webhook
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Botão para testar tipos de webhook */}
-        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <button
-            onClick={testWebhookTypes}
-            disabled={testingWebhookTypes}
-            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
-          >
-            {testingWebhookTypes ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Testando...
-              </>
-            ) : (
-              <>
-                <FaCog className="mr-2" />
-                Testar Tipos de Webhook
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Botão para debugar tipos de webhook */}
-        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <button
-            onClick={debugWebhookTypes}
-            disabled={debuggingTypes}
-            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
-          >
-            {debuggingTypes ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Testando...
-              </>
-            ) : (
-              <>
-                <FaCog className="mr-2" />
-                Testar Tipos de Webhook
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Botão para debugar registro de webhook */}
-        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <button
-            onClick={debugWebhookRegister}
-            disabled={debuggingRegister}
-            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
-          >
-            {debuggingRegister ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Testando...
-              </>
-            ) : (
-              <>
-                <FaCog className="mr-2" />
-                Testar Registro de Webhook
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Botão para escanear endpoints */}
-        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <button
-            onClick={scanWebhookEndpoints}
-            disabled={scanningEndpoints}
-            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
-          >
-            {scanningEndpoints ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Testando...
-              </>
-            ) : (
-              <>
-                <FaCog className="mr-2" />
-                Testar Escaneamento de Endpoints
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Botão para analisar webhooks */}
-        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <button
-            onClick={analyzeWebhooks}
-            disabled={analyzingWebhooks}
-            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
-          >
-            {analyzingWebhooks ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Testando...
-              </>
-            ) : (
-              <>
-                <FaCog className="mr-2" />
-                Testar Análise de Webhooks
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Botão para log detalhado */}
-        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <button
-            onClick={detailedWebhookLog}
-            disabled={detailedLogging}
-            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
-          >
-            {detailedLogging ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Testando...
-              </>
-            ) : (
-              <>
-                <FaCog className="mr-2" />
-                Testar Log Detalhado
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Botão para testar solução final */}
-        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <button
-            onClick={testFinalSolution}
-            disabled={finalSolution}
-            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
-          >
-            {finalSolution ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Testando...
-              </>
-            ) : (
-              <>
-                <FaCog className="mr-2" />
-                Testar Solução Final
-              </>
-            )}
-          </button>
         </div>
       </div>
     </div>
