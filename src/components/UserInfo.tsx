@@ -139,7 +139,7 @@ export default function UserInfo() {
           <div className="flex items-center space-x-1 text-xs text-gray-600 dark:text-gray-400">
             <FaWallet className="h-3 w-3" />
             <span className="font-medium text-green-600 dark:text-green-400">
-              R$ {user.balance.toFixed(2)}
+              R$ {user.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
         </div>
@@ -168,7 +168,7 @@ export default function UserInfo() {
             <div className="flex items-center space-x-1 text-sm">
               <FaWallet className="h-3 w-3 text-gray-400" />
               <span className="font-medium text-green-600 dark:text-green-400">
-                R$ {user.balance.toFixed(2)}
+                R$ {user.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
           </div>

@@ -46,8 +46,24 @@ interface PaymentWebhookMessage {
 
 type WebhookMessage = QRCodeWebhookMessage | PaymentWebhookMessage;
 
+export async function GET(request: NextRequest) {
+  console.log('🔍 WEBHOOK PRIMEPAG: Teste GET recebido');
+  console.log('🕐 Timestamp:', new Date().toISOString());
+  
+  return NextResponse.json({
+    success: true,
+    message: 'Webhook PrimePag está funcionando',
+    timestamp: new Date().toISOString(),
+    url: request.url
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
+    console.log('🚀 WEBHOOK PRIMEPAG: Requisição recebida');
+    console.log('🕐 Timestamp:', new Date().toISOString());
+    console.log('🌐 Headers:', Object.fromEntries(request.headers.entries()));
+    
     const body = await request.json() as WebhookMessage;
     const { notification_type, message, md5 } = body;
 
