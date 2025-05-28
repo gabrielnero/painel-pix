@@ -5,10 +5,10 @@ import { FaBell, FaTimes, FaCheckCircle, FaGift, FaMoneyBillWave, FaUserPlus } f
 
 interface Notification {
   id: string;
-  type: 'payment_approved' | 'invite_received' | 'withdrawal_processed' | 'invite_used';
+  type: string;
   title: string;
   message: string;
-  timestamp: Date;
+  timestamp: Date | string;
   read: boolean;
   data?: any;
 }
@@ -76,9 +76,16 @@ export default function NotificationSystem() {
     }
   };
 
-  const formatTime = (timestamp: Date) => {
+  const formatTime = (timestamp: Date | string) => {
     const now = new Date();
-    const diff = now.getTime() - timestamp.getTime();
+    const targetDate = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
+    
+    // Verificar se a data é válida
+    if (isNaN(targetDate.getTime())) {
+      return 'Data inválida';
+    }
+    
+    const diff = now.getTime() - targetDate.getTime();
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);

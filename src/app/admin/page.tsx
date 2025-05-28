@@ -40,6 +40,20 @@ interface DashboardStats {
   weeklyGrowth: number;
 }
 
+interface PrimepagAccount {
+  id: number;
+  name: string;
+  data?: {
+    account_balance?: {
+      available_value_cents: number;
+      blocked_value_cents: number;
+      total_value_cents: number;
+    };
+    status?: string;
+  };
+  error?: string;
+}
+
 interface RecentActivity {
   id: string;
   type: 'user_registered' | 'payment_received' | 'user_banned' | 'user_promoted';
@@ -68,6 +82,8 @@ export default function AdminDashboard() {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [primepagAccounts, setPrimepagAccounts] = useState<PrimepagAccount[]>([]);
+  const [loadingBalance, setLoadingBalance] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -76,6 +92,27 @@ export default function AdminDashboard() {
 
     return () => clearInterval(timer);
   }, []);
+
+  const fetchPrimepagBalance = async () => {
+    setLoadingBalance(true);
+    try {
+      const response = await fetch('/api/admin/primepag-balance');
+      const data = await response.json();
+
+      if (data.success) {
+        setPrimepagAccounts(data.accounts);
+      } else {
+        toast.error(data.message || 'Erro ao carregar saldos PrimePag');
+        setPrimepagAccounts([]);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar saldos PrimePag:', error);
+      toast.error('Erro ao carregar saldos PrimePag');
+      setPrimepagAccounts([]);
+    } finally {
+      setLoadingBalance(false);
+    }
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -110,6 +147,7 @@ export default function AdminDashboard() {
     };
 
     fetchDashboardData();
+    fetchPrimepagBalance();
   }, []);
 
   const getActivityIcon = (type: string) => {
@@ -263,6 +301,87 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* PrimePag Balance Section */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Saldos PrimePag</h2>
+            <button
+              onClick={fetchPrimepagBalance}
+              disabled={loadingBalance}
+              className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-colors duration-300"
+            >
+              {loadingBalance ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              ) : (
+                <FaMoneyBillWave className="mr-2" />
+              )}
+              Atualizar Saldos
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {primepagAccounts.map((account) => (
+              <div key={account.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {account.name}
+                  </h3>
+                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    account.data?.status === 'active' 
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      : account.error
+                      ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                  }`}>
+                    {account.error ? 'Erro' : account.data?.status || 'Desconhecido'}
+                  </div>
+                </div>
+
+                {account.error ? (
+                  <div className="text-red-600 dark:text-red-400 text-sm">
+                    <p className="font-medium">Erro ao carregar saldo:</p>
+                    <p className="mt-1">{account.error}</p>
+                  </div>
+                ) : account.data?.account_balance ? (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Saldo Disponível:</span>
+                      <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                        R$ {(account.data.account_balance.available_value_cents / 100).toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Saldo Bloqueado:</span>
+                      <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
+                        R$ {(account.data.account_balance.blocked_value_cents / 100).toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">Saldo Total:</span>
+                      <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                        R$ {(account.data.account_balance.total_value_cents / 100).toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-gray-500 dark:text-gray-400 text-sm">
+                    Dados de saldo não disponíveis
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {primepagAccounts.length === 0 && !loadingBalance && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
+              <FaExclamationTriangle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
+              <p className="text-gray-600 dark:text-gray-400">
+                Nenhuma conta PrimePag configurada ou erro ao carregar saldos
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

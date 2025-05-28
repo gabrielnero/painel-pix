@@ -20,7 +20,7 @@ interface Notification {
   type: 'comment' | 'payment' | 'badge' | 'system' | 'warning' | 'success' | 'info';
   title: string;
   message: string;
-  timestamp: Date;
+  timestamp: Date | string;
   read: boolean;
   actionUrl?: string;
   data?: any;
@@ -75,9 +75,16 @@ export default function NotificationCenter() {
     }
   };
 
-  const formatRelativeTime = (date: Date) => {
+  const formatRelativeTime = (date: Date | string) => {
     const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    const targetDate = typeof date === 'string' ? new Date(date) : date;
+    
+    // Verificar se a data é válida
+    if (isNaN(targetDate.getTime())) {
+      return 'Data inválida';
+    }
+    
+    const diffInSeconds = Math.floor((now.getTime() - targetDate.getTime()) / 1000);
 
     if (diffInSeconds < 60) return 'agora mesmo';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m atrás`;
