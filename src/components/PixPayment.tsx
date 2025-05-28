@@ -15,7 +15,7 @@ interface Customer {
 interface PixData {
   id: string;
   amount: number;
-  status: 'pending' | 'paid' | 'expired' | 'cancelled';
+  status: 'pending' | 'paid' | 'expired' | 'cancelled' | 'awaiting_payment';
   pixKey: string;
   pixCopiaECola: string;
   qrCodeImage: string;

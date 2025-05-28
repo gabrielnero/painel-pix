@@ -38,31 +38,66 @@ export async function POST(request: NextRequest) {
         let primepagStatus;
         let accountUsed = 1;
         
-                 try {
-           primepagStatus = await primepagService.getPixStatus(payment.referenceCode || '', 1);
-           accountUsed = 1;
-         } catch (error) {
-           try {
-             primepagStatus = await primepagService.getPixStatus(payment.referenceCode || '', 2);
-             accountUsed = 2;
-           } catch (error2) {
-            console.error(`Erro ao consultar status do PIX ${payment.referenceCode}:`, error);
-            results.push({
-              referenceCode: payment.referenceCode,
-              error: 'Erro ao consultar status na PrimePag'
-            });
-            continue;
+        // Primeiro tentar a conta salva no pagamento, se disponível
+        if (payment.primepagAccount) {
+          try {
+            primepagStatus = await primepagService.getPixStatus(payment.referenceCode || '', payment.primepagAccount);
+            accountUsed = payment.primepagAccount;
+          } catch (error) {
+            // Se der erro na conta salva, tentar a outra conta
+            const otherAccount = payment.primepagAccount === 1 ? 2 : 1;
+            try {
+              primepagStatus = await primepagService.getPixStatus(payment.referenceCode || '', otherAccount);
+              accountUsed = otherAccount;
+            } catch (error2) {
+              console.error(`Erro ao consultar status do PIX ${payment.referenceCode} em ambas as contas:`, error);
+              results.push({
+                referenceCode: payment.referenceCode,
+                error: 'PIX não encontrado em nenhuma das contas'
+              });
+              continue;
+            }
+          }
+        } else {
+          // Se não tem conta salva, tentar ambas as contas
+          try {
+            primepagStatus = await primepagService.getPixStatus(payment.referenceCode || '', 1);
+            accountUsed = 1;
+          } catch (error) {
+            try {
+              primepagStatus = await primepagService.getPixStatus(payment.referenceCode || '', 2);
+              accountUsed = 2;
+            } catch (error2) {
+              console.error(`Erro ao consultar status do PIX ${payment.referenceCode}:`, error);
+              results.push({
+                referenceCode: payment.referenceCode,
+                error: 'PIX não encontrado em nenhuma das contas'
+              });
+              continue;
+            }
           }
         }
 
         console.log(`PIX ${payment.referenceCode} - Status na PrimePag (conta ${accountUsed}):`, primepagStatus.status);
 
+        // Mapear status da PrimePag para nosso sistema
+        const statusMapping: { [key: string]: 'pending' | 'paid' | 'expired' | 'cancelled' | 'awaiting_payment' } = {
+          'pending': 'pending',
+          'awaiting_payment': 'awaiting_payment',
+          'paid': 'paid',
+          'completed': 'paid',
+          'expired': 'expired',
+          'cancelled': 'cancelled'
+        };
+
+        const mappedStatus = primepagStatus.status ? (statusMapping[primepagStatus.status] || 'pending') : 'pending';
+
         // Se o status mudou, atualizar
-        if (primepagStatus.status && primepagStatus.status !== payment.status) {
+        if (primepagStatus.status && mappedStatus !== payment.status) {
           const oldStatus = payment.status;
-          payment.status = primepagStatus.status;
+          payment.status = mappedStatus;
           
-          if (primepagStatus.status === 'paid' && primepagStatus.paid_at) {
+          if (mappedStatus === 'paid' && primepagStatus.paid_at) {
             payment.paidAt = new Date(primepagStatus.paid_at);
             
             // Creditar na carteira do usuário

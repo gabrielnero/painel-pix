@@ -21,7 +21,7 @@ import { useMaintenanceMode } from '@/hooks/useMaintenanceMode';
 interface PixData {
   id: string;
   amount: number;
-  status: 'pending' | 'paid' | 'expired' | 'cancelled';
+  status: 'pending' | 'paid' | 'expired' | 'cancelled' | 'awaiting_payment';
   pixKey: string;
   pixCopiaECola: string;
   qrCodeImage: string;
@@ -76,7 +76,7 @@ function GeneratePixContent() {
           setHasActivePix(true);
           
           // Iniciar verificação automática se o PIX estiver pendente
-          if (data.payment.status === 'pending') {
+          if (data.payment.status === 'pending' || data.payment.status === 'awaiting_payment') {
             const interval = setInterval(() => {
               checkPaymentStatus(data.payment.referenceCode, true);
             }, 5000);
@@ -345,6 +345,7 @@ function GeneratePixContent() {
       case 'paid':
         return <FaCheckCircle className="text-green-500" />;
       case 'pending':
+      case 'awaiting_payment':
         return <FaClock className="text-yellow-500" />;
       case 'expired':
       case 'cancelled':
@@ -360,6 +361,8 @@ function GeneratePixContent() {
         return 'Pago';
       case 'pending':
         return 'Aguardando pagamento';
+      case 'awaiting_payment':
+        return 'Aguardando pagamento';
       case 'expired':
         return 'Expirado';
       case 'cancelled':
@@ -374,6 +377,7 @@ function GeneratePixContent() {
       case 'paid':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
       case 'pending':
+      case 'awaiting_payment':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
       case 'expired':
       case 'cancelled':

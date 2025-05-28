@@ -32,7 +32,7 @@ interface QRCodeResponse {
 }
 
 interface QRCodeStatusResponse {
-  status?: 'pending' | 'paid' | 'expired' | 'cancelled';
+  status?: 'pending' | 'paid' | 'expired' | 'cancelled' | 'awaiting_payment' | 'completed';
   value_cents?: number;
   paid_at?: string;
   expires_at?: string;
@@ -42,7 +42,7 @@ interface QRCodeStatusResponse {
   qrcode?: {
     reference_code: string;
     external_reference?: string;
-    status?: 'pending' | 'paid' | 'expired' | 'cancelled';
+    status?: 'pending' | 'paid' | 'expired' | 'cancelled' | 'awaiting_payment' | 'completed';
     value_cents?: number;
     paid_at?: string;
     expires_at?: string;

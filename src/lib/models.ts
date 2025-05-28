@@ -46,7 +46,7 @@ export interface IPayment extends Document {
   userId: mongoose.Types.ObjectId;
   amount: number;
   description: string;
-  status: 'pending' | 'paid' | 'expired' | 'cancelled';
+  status: 'pending' | 'paid' | 'expired' | 'cancelled' | 'awaiting_payment';
   pixKey?: string;
   pixCopiaECola?: string;
   qrCodeImage?: string;
@@ -248,7 +248,7 @@ const PaymentSchema = new Schema<IPayment>({
   },
   status: {
     type: String,
-    enum: ['pending', 'paid', 'expired', 'cancelled'],
+    enum: ['pending', 'paid', 'expired', 'cancelled', 'awaiting_payment'],
     default: 'pending'
   },
   pixKey: {

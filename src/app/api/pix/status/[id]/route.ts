@@ -46,8 +46,16 @@ export async function GET(
       if (dbPayment && dbPayment.primepagAccount) {
         // Se encontrou no banco, usar a conta correta
         console.log(`Usando conta ${dbPayment.primepagAccount} baseada no banco de dados`);
-        payment = await primepagService.getPixStatus(id, dbPayment.primepagAccount);
-        accountUsed = dbPayment.primepagAccount;
+        try {
+          payment = await primepagService.getPixStatus(id, dbPayment.primepagAccount);
+          accountUsed = dbPayment.primepagAccount;
+        } catch (error) {
+          // Se der erro na conta salva, tentar a outra conta
+          const otherAccount = dbPayment.primepagAccount === 1 ? 2 : 1;
+          console.log(`Erro na conta ${dbPayment.primepagAccount}, tentando conta ${otherAccount}:`, error);
+          payment = await primepagService.getPixStatus(id, otherAccount);
+          accountUsed = otherAccount;
+        }
       } else {
         // Se não encontrou no banco, tentar ambas as contas
         console.log('Pagamento não encontrado no banco, tentando ambas as contas...');
@@ -61,11 +69,32 @@ export async function GET(
         }
       }
     } catch (error) {
-      console.error('Erro ao consultar status do PIX:', error);
+      console.error('Erro ao consultar status do PIX em ambas as contas:', error);
+      
+      // Se não conseguiu encontrar em nenhuma conta, retornar erro mais específico
+      if (error instanceof Error && error.message.includes('404')) {
+        return NextResponse.json(
+          { success: false, message: 'PIX não encontrado em nenhuma das contas configuradas' },
+          { status: 404 }
+        );
+      }
+      
       throw error;
     }
     
     console.log(`Status consultado com sucesso na conta ${accountUsed}`);
+
+    // Mapear status da PrimePag para nosso sistema
+    const statusMapping: { [key: string]: 'pending' | 'paid' | 'expired' | 'cancelled' | 'awaiting_payment' } = {
+      'pending': 'pending',
+      'awaiting_payment': 'awaiting_payment',
+      'paid': 'paid',
+      'completed': 'paid',
+      'expired': 'expired',
+      'cancelled': 'cancelled'
+    };
+
+    const mappedStatus = payment.status ? (statusMapping[payment.status] || 'pending') : 'pending';
 
     // Log para debug
     if (process.env.NODE_ENV === 'development') {
@@ -74,7 +103,8 @@ export async function GET(
         paymentUserId: payment.external_reference,
         currentUserId: authResult.userId,
         userRole: authResult.role,
-        paymentStatus: payment.status,
+        originalStatus: payment.status,
+        mappedStatus: mappedStatus,
         fullPaymentData: payment
       });
     }
@@ -92,7 +122,7 @@ export async function GET(
     // Normalizar o status para garantir consistência
     const normalizedPayment = {
       ...payment,
-      status: payment.status || 'pending'
+      status: mappedStatus
     };
 
     return NextResponse.json({
