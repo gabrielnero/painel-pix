@@ -47,6 +47,7 @@ export default function AdminWebhookPage() {
   const [testingWebhookPost, setTestingWebhookPost] = useState(false);
   const [testingWebhookTypes, setTestingWebhookTypes] = useState(false);
   const [debuggingTypes, setDebuggingTypes] = useState(false);
+  const [debuggingRegister, setDebuggingRegister] = useState(false);
 
   useEffect(() => {
     fetchWebhookConfig();
@@ -360,6 +361,42 @@ export default function AdminWebhookPage() {
       toast.error('Erro ao obter detalhes dos tipos');
     } finally {
       setDebuggingTypes(false);
+    }
+  };
+
+  const debugWebhookRegister = async () => {
+    setDebuggingRegister(true);
+    try {
+      const response = await fetch('/api/debug/webhook-register-debug', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('🎉 WEBHOOK REGISTRADO COM SUCESSO!');
+        console.log('=== SUCESSO NO REGISTRO ===');
+        console.log('Dados completos:', data);
+        console.log('Payload que funcionou:', data.payload);
+        console.log('Resposta da PrimePag:', data.response);
+        
+        if (data.attempt) {
+          toast.success(`✅ Funcionou com payload alternativo ${data.attempt}!`);
+        }
+      } else {
+        toast.error('❌ Falha no registro do webhook');
+        console.log('=== FALHA NO REGISTRO ===');
+        console.log('Erro completo:', data);
+        console.log('Payload testado:', data.payload);
+        console.log('Erro da API:', data.error);
+      }
+    } catch (error) {
+      console.error('Erro no debug de registro:', error);
+      toast.error('Erro no debug de registro');
+    } finally {
+      setDebuggingRegister(false);
     }
   };
 
@@ -727,6 +764,27 @@ export default function AdminWebhookPage() {
               <>
                 <FaCog className="mr-2" />
                 Testar Tipos de Webhook
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Botão para debugar registro de webhook */}
+        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <button
+            onClick={debugWebhookRegister}
+            disabled={debuggingRegister}
+            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
+          >
+            {debuggingRegister ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Testando...
+              </>
+            ) : (
+              <>
+                <FaCog className="mr-2" />
+                Testar Registro de Webhook
               </>
             )}
           </button>
