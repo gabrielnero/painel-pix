@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import { 
@@ -28,6 +29,9 @@ interface PixData {
 }
 
 export default function GeneratePixPage() {
+  const searchParams = useSearchParams();
+  const selectedAccount = searchParams.get('account') ? parseInt(searchParams.get('account')!) : 1;
+  
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
@@ -190,6 +194,7 @@ export default function GeneratePixPage() {
           amount: amountValue,
           description,
           expiresIn: 3600, // 1 hora
+          account: selectedAccount, // Usar conta selecionada
         }),
       });
 
@@ -294,6 +299,10 @@ export default function GeneratePixPage() {
           <p className="text-gray-600 dark:text-gray-300">
             Crie códigos PIX para receber pagamentos de forma rápida e segura.
           </p>
+          <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+            <FaCheckCircle className="mr-2" />
+            Usando Conta {selectedAccount} da PrimePag
+          </div>
         </div>
 
         <div className="max-w-4xl mx-auto">

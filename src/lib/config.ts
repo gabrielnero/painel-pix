@@ -33,15 +33,59 @@ function decrypt(text: string): string {
 
 // Configurações padrão do sistema
 export const DEFAULT_CONFIGS = {
-  // Configurações PrimePag
+  // Configurações PrimePag - Conta 1
+  'primepag.account1.client_id': {
+    value: '95bba334-20f7-40b3-8ce3-82b14cb1ebcb',
+    description: 'Client ID da PrimePag - Conta 1',
+    isEncrypted: true
+  },
+  'primepag.account1.client_secret': {
+    value: 'f28c7937-f850-4222-be6f-8a032cb42d81',
+    description: 'Client Secret da PrimePag - Conta 1',
+    isEncrypted: true
+  },
+  'primepag.account1.enabled': {
+    value: 'true',
+    description: 'Habilitar PrimePag Conta 1',
+    isEncrypted: false
+  },
+  'primepag.account1.name': {
+    value: 'Conta Principal',
+    description: 'Nome de exibição da Conta 1',
+    isEncrypted: false
+  },
+  
+  // Configurações PrimePag - Conta 2
+  'primepag.account2.client_id': {
+    value: '07a09473-621f-4587-bb73-0fbf3de4a457',
+    description: 'Client ID da PrimePag - Conta 2',
+    isEncrypted: true
+  },
+  'primepag.account2.client_secret': {
+    value: 'f84dd33f-09ee-4111-a84d-d10ef408ad96',
+    description: 'Client Secret da PrimePag - Conta 2',
+    isEncrypted: true
+  },
+  'primepag.account2.enabled': {
+    value: 'true',
+    description: 'Habilitar PrimePag Conta 2',
+    isEncrypted: false
+  },
+  'primepag.account2.name': {
+    value: 'Conta Secundária',
+    description: 'Nome de exibição da Conta 2',
+    isEncrypted: false
+  },
+  
+  // Configurações PrimePag - Legado (manter compatibilidade)
   'primepag.client_id': {
-    value: 'marciojunior9482_9302272031',
-    description: 'Client ID da PrimePag',
+    value: '95bba334-20f7-40b3-8ce3-82b14cb1ebcb',
+    description: 'Client ID da PrimePag (Legado)',
     isEncrypted: true
   },
   'primepag.client_secret': {
-    value: '1d19ccec30031b119bfc731b56eda0d3e5575116a7846058560cd20cad7c614f',
-    description: 'Client Secret da PrimePag',
+    value: 'f28c7937-f850-4222-be6f-8a032cb42d81',
+    description: 'Client Secret da PrimePag (Legado)',
     isEncrypted: true
   },
   'primepag.enabled': {
@@ -272,12 +316,42 @@ export async function getPixConfig() {
   };
 }
 
-// Função para obter configurações de API de pagamento
+// Função para obter configurações de API de pagamento (legado)
 export async function getPaymentConfig() {
   return {
     clientId: await getConfig('primepag.client_id'),
     clientSecret: await getConfig('primepag.client_secret')
   };
+}
+
+// Função para obter configurações de uma conta específica da Primepag
+export async function getPrimepagAccountConfig(accountNumber: 1 | 2) {
+  const accountKey = `primepag.account${accountNumber}`;
+  return {
+    clientId: await getConfig(`${accountKey}.client_id`),
+    clientSecret: await getConfig(`${accountKey}.client_secret`),
+    enabled: (await getConfig(`${accountKey}.enabled`)) === 'true',
+    name: await getConfig(`${accountKey}.name`) || `Conta ${accountNumber}`
+  };
+}
+
+// Função para obter todas as contas da Primepag disponíveis
+export async function getPrimepagAccounts() {
+  const accounts = [];
+  
+  for (let i = 1; i <= 2; i++) {
+    const config = await getPrimepagAccountConfig(i as 1 | 2);
+    if (config.enabled && config.clientId && config.clientSecret) {
+      accounts.push({
+        id: i,
+        name: config.name,
+        clientId: config.clientId,
+        clientSecret: config.clientSecret
+      });
+    }
+  }
+  
+  return accounts;
 }
 
 // Função para obter configurações de um provedor específico

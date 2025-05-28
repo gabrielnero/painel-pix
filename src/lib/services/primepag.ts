@@ -1,11 +1,10 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import qs from 'qs';
 import crypto from 'crypto';
+import { getPrimepagAccountConfig } from '@/lib/config';
 
-// Configurações da API PrimePag - USAR VARIÁVEIS DE AMBIENTE EM PRODUÇÃO
+// Configurações da API PrimePag
 const BASE_URL = 'https://api.primepag.com.br';
-const CLIENT_ID = process.env.PRIMEPAG_CLIENT_ID || 'marciojunior9482_9302272031';
-const CLIENT_SECRET = process.env.PRIMEPAG_CLIENT_SECRET || '1d19ccec30031b119bfc731b56eda0d3e5575116a7846058560cd20cad7c614f';
 
 // Types and Interfaces
 interface PrimepagAuthResponse {
@@ -20,6 +19,7 @@ interface QRCodeGenerateRequest {
   generator_document?: string;
   expiration_time?: number;
   external_reference?: string;
+  account?: 1 | 2; // Nova propriedade para especificar a conta
 }
 
 interface QRCodeResponse {
@@ -58,8 +58,7 @@ interface QRCodeStatusResponse {
 
 class PrimepagService {
   private static instance: PrimepagService;
-  private accessToken: string | null = null;
-  private tokenExpiration: Date | null = null;
+  private accessTokens: Map<number, { token: string; expiration: Date }> = new Map();
 
   private constructor() {}
 
@@ -70,9 +69,16 @@ class PrimepagService {
     return PrimepagService.instance;
   }
 
-  private async authenticate(): Promise<void> {
+  private async authenticate(accountNumber: 1 | 2 = 1): Promise<void> {
     try {
-      console.log('Iniciando autenticação com Primepag...');
+      console.log(`Iniciando autenticação com Primepag - Conta ${accountNumber}...`);
+      
+      // Obter configurações da conta específica
+      const accountConfig = await getPrimepagAccountConfig(accountNumber);
+      
+      if (!accountConfig.enabled || !accountConfig.clientId || !accountConfig.clientSecret) {
+        throw new Error(`Conta ${accountNumber} da Primepag não está configurada ou habilitada`);
+      }
       
       const requestConfig: AxiosRequestConfig = {
         headers: {
@@ -84,8 +90,8 @@ class PrimepagService {
         grant_type: 'client_credentials'
       };
 
-      // Gerar Basic Auth com as novas credenciais
-      const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64');
+      // Gerar Basic Auth com as credenciais da conta específica
+      const credentials = Buffer.from(`${accountConfig.clientId}:${accountConfig.clientSecret}`).toString('base64');
       
       requestConfig.headers = {
         ...requestConfig.headers,
@@ -102,26 +108,40 @@ class PrimepagService {
         throw new Error('Token de acesso não recebido');
       }
 
-      this.accessToken = response.data.access_token;
-      this.tokenExpiration = new Date(Date.now() + (response.data.expires_in * 1000));
+      // Armazenar token para a conta específica
+      this.accessTokens.set(accountNumber, {
+        token: response.data.access_token,
+        expiration: new Date(Date.now() + (response.data.expires_in * 1000))
+      });
       
-      console.log('Autenticação realizada com sucesso');
+      console.log(`Autenticação realizada com sucesso - Conta ${accountNumber}`);
     } catch (error) {
-      console.error('Erro ao autenticar com Primepag:', error);
-      throw new Error('Falha na autenticação com Primepag');
+      console.error(`Erro ao autenticar com Primepag - Conta ${accountNumber}:`, error);
+      throw new Error(`Falha na autenticação com Primepag - Conta ${accountNumber}`);
     }
   }
 
-  private async ensureAuthenticated(): Promise<string> {
-    if (!this.accessToken || !this.tokenExpiration || this.tokenExpiration < new Date()) {
-      await this.authenticate();
+  private async ensureAuthenticated(accountNumber: 1 | 2 = 1): Promise<string> {
+    const tokenData = this.accessTokens.get(accountNumber);
+    
+    if (!tokenData || tokenData.expiration < new Date()) {
+      await this.authenticate(accountNumber);
+      const newTokenData = this.accessTokens.get(accountNumber);
+      if (!newTokenData) {
+        throw new Error(`Falha ao obter token para conta ${accountNumber}`);
+      }
+      return newTokenData.token;
     }
-    return this.accessToken!;
+    
+    return tokenData.token;
   }
 
   public async generatePixQRCode(data: QRCodeGenerateRequest): Promise<QRCodeResponse> {
     try {
-      const token = await this.ensureAuthenticated();
+      const accountNumber = data.account || 1; // Usar conta 1 como padrão
+      const token = await this.ensureAuthenticated(accountNumber);
+
+      console.log(`Gerando PIX usando Conta ${accountNumber}`);
 
       const response = await axios.post<QRCodeResponse>(
         `${BASE_URL}/v1/pix/qrcodes`,
@@ -147,9 +167,9 @@ class PrimepagService {
     }
   }
 
-  public async getPixStatus(referenceCode: string): Promise<QRCodeStatusResponse> {
+  public async getPixStatus(referenceCode: string, accountNumber: 1 | 2 = 1): Promise<QRCodeStatusResponse> {
     try {
-      const token = await this.ensureAuthenticated();
+      const token = await this.ensureAuthenticated(accountNumber);
 
       console.log('Consultando status PIX para referenceCode:', referenceCode);
 
@@ -221,9 +241,9 @@ class PrimepagService {
     }
   }
 
-  public async listQRCodes(page: number = 1, limit: number = 10): Promise<QRCodeStatusResponse[]> {
+  public async listQRCodes(page: number = 1, limit: number = 10, accountNumber: 1 | 2 = 1): Promise<QRCodeStatusResponse[]> {
     try {
-      const token = await this.ensureAuthenticated();
+      const token = await this.ensureAuthenticated(accountNumber);
 
       const response = await axios.get<QRCodeStatusResponse[]>(
         `${BASE_URL}/v1/pix/qrcodes`,

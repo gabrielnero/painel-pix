@@ -27,7 +27,7 @@ export default function SelectPaymentGateway() {
       features: ['PIX instantâneo', 'QR Code automático', 'Confirmação em tempo real'],
       logo: '🏦',
       available: true,
-      href: '/dashboard/generate-pix'
+      href: '/dashboard/select-primepag-account'
     },
     {
       id: 'mercadopago',

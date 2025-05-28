@@ -16,7 +16,8 @@ export async function POST(request: NextRequest) {
       customer,
       expiresIn,
       callbackUrl,
-      metadata 
+      metadata,
+      account 
     } = body;
 
     // Verificar autenticação
@@ -79,7 +80,8 @@ export async function POST(request: NextRequest) {
         generator_name: customer?.name || 'Cliente',
         generator_document: customer?.document || '12345678901',
         expiration_time: expiresIn || 1800, // 30 minutos por padrão
-        external_reference: authResult.userId // Usar ID do usuário como referência
+        external_reference: authResult.userId, // Usar ID do usuário como referência
+        account: account || 1 // Usar conta especificada ou conta 1 como padrão
       });
 
       console.log('PIX gerado via PrimePag:', primepagResponse);
