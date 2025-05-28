@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
@@ -28,7 +28,7 @@ interface PixData {
   expiresAt: string;
 }
 
-export default function GeneratePixPage() {
+function GeneratePixContent() {
   const searchParams = useSearchParams();
   const selectedAccount = searchParams.get('account') ? parseInt(searchParams.get('account')!) : 1;
   
@@ -511,5 +511,20 @@ export default function GeneratePixPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function GeneratePixPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <FaSpinner className="animate-spin text-4xl text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Carregando...</p>
+        </div>
+      </div>
+    }>
+      <GeneratePixContent />
+    </Suspense>
   );
 } 
