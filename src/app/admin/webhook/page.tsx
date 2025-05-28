@@ -147,8 +147,20 @@ export default function AdminWebhookPage() {
           }
         }
       } else {
-        toast.error(data.message || 'Erro ao configurar webhook na Conta 1');
+        // Log detalhado do erro
         console.error('Erro na configuração da Conta 1:', data);
+        if (data.results && data.results[0]) {
+          const result = data.results[0];
+          console.error('Detalhes do erro da Conta 1:', result);
+          console.error('Mensagem de erro:', result.message);
+          console.error('Erro específico:', result.error);
+          if (result.details) {
+            console.error('Detalhes adicionais:', result.details);
+          }
+          toast.error(`Erro na Conta 1: ${result.message || result.error}`);
+        } else {
+          toast.error(data.message || 'Erro ao configurar webhook na Conta 1');
+        }
       }
     } catch (error) {
       console.error('Erro ao configurar webhook na Conta 1:', error);
