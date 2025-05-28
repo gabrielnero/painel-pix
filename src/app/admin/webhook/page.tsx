@@ -42,6 +42,7 @@ export default function AdminWebhookPage() {
   const [testReferenceCode, setTestReferenceCode] = useState('');
   const [testValue, setTestValue] = useState('2.00');
   const [configuring, setConfiguring] = useState(false);
+  const [configuringAccount1, setConfiguringAccount1] = useState(false);
 
   useEffect(() => {
     fetchWebhookConfig();
@@ -79,29 +80,81 @@ export default function AdminWebhookPage() {
 
       const data = await response.json();
 
+      console.log('Resultado completo da configuração:', data);
+
       if (data.success) {
         toast.success(data.message);
-        console.log('Resultado da configuração:', data);
         
         // Mostrar detalhes dos resultados
         if (data.results) {
           data.results.forEach((result: any) => {
             if (result.success) {
-              toast.success(`✅ Conta ${result.account}: ${result.message}`);
+              if (result.action === 'already_configured') {
+                toast.success(`✅ Conta ${result.account}: Webhook já estava configurado`);
+              } else {
+                toast.success(`✅ Conta ${result.account}: Webhook configurado com sucesso`);
+              }
             } else {
               toast.error(`❌ Conta ${result.account}: ${result.message}`);
+              console.error(`Erro detalhado da conta ${result.account}:`, result);
             }
           });
         }
       } else {
         toast.error(data.message || 'Erro ao configurar webhook');
         console.error('Erro na configuração:', data);
+        
+        // Mostrar detalhes dos erros mesmo quando success é false
+        if (data.results) {
+          data.results.forEach((result: any) => {
+            if (!result.success) {
+              toast.error(`❌ Conta ${result.account}: ${result.message}`);
+              if (result.details) {
+                console.error(`Detalhes do erro da conta ${result.account}:`, result.details);
+              }
+            }
+          });
+        }
       }
     } catch (error) {
       console.error('Erro ao configurar webhook:', error);
       toast.error('Erro ao configurar webhook automaticamente');
     } finally {
       setConfiguring(false);
+    }
+  };
+
+  const configureWebhookAccount1 = async () => {
+    setConfiguringAccount1(true);
+    try {
+      const response = await fetch('/api/admin/configure-webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ account: 1 }) // Apenas conta 1
+      });
+
+      const data = await response.json();
+      console.log('Resultado da configuração da Conta 1:', data);
+
+      if (data.success) {
+        toast.success('Webhook configurado com sucesso na Conta 1!');
+        if (data.results && data.results[0]) {
+          const result = data.results[0];
+          if (result.action === 'already_configured') {
+            toast.success('Webhook já estava configurado na Conta 1');
+          }
+        }
+      } else {
+        toast.error(data.message || 'Erro ao configurar webhook na Conta 1');
+        console.error('Erro na configuração da Conta 1:', data);
+      }
+    } catch (error) {
+      console.error('Erro ao configurar webhook na Conta 1:', error);
+      toast.error('Erro ao configurar webhook na Conta 1');
+    } finally {
+      setConfiguringAccount1(false);
     }
   };
 
@@ -406,6 +459,27 @@ export default function AdminWebhookPage() {
               <>
                 <FaCog className="mr-2" />
                 Configurar Webhook Automaticamente
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Botão para configurar webhook apenas na Conta 1 */}
+        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <button
+            onClick={configureWebhookAccount1}
+            disabled={configuringAccount1}
+            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
+          >
+            {configuringAccount1 ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Configurando...
+              </>
+            ) : (
+              <>
+                <FaCog className="mr-2" />
+                Configurar Webhook na Conta 1
               </>
             )}
           </button>
