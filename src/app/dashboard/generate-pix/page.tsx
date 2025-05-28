@@ -68,24 +68,37 @@ function GeneratePixContent() {
 
   const checkActivePix = async () => {
     try {
+      console.log('🔍 Verificando PIX ativo...');
       const response = await fetch('/api/pix/active');
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 Resposta da API de PIX ativo:', data);
+        
         if (data.success && data.payment) {
+          console.log('📋 PIX ativo encontrado:', data.payment);
           setPixData(data.payment);
           setHasActivePix(true);
           
           // Iniciar verificação automática se o PIX estiver pendente
           if (data.payment.status === 'pending' || data.payment.status === 'awaiting_payment') {
+            console.log('🔄 Iniciando verificação automática para PIX ativo...');
             const interval = setInterval(() => {
+              console.log('⏰ Executando verificação automática (PIX ativo)...');
               checkPaymentStatus(data.payment.referenceCode, true);
             }, 5000);
             setStatusCheckInterval(interval);
+            console.log('📊 Interval ID (PIX ativo):', interval);
+          } else {
+            console.log(`ℹ️ PIX ativo com status final: ${data.payment.status}`);
           }
+        } else {
+          console.log('ℹ️ Nenhum PIX ativo encontrado');
         }
+      } else {
+        console.error('❌ Erro ao verificar PIX ativo:', response.status, response.statusText);
       }
     } catch (error) {
-      console.error('Erro ao verificar PIX ativo:', error);
+      console.error('❌ Erro ao verificar PIX ativo:', error);
     }
   };
 
@@ -131,14 +144,15 @@ function GeneratePixContent() {
         return;
       }
       
-      // Verificar se ainda temos um interval ativo - se não, não continuar
-      if (!statusCheckInterval) {
-        return;
+      // Log para debug
+      if (!silent) {
+        console.log('🔍 Verificando status do pagamento:', paymentId);
       }
       
       const response = await fetch(`/api/pix/status/${paymentId}`);
       
       if (!response.ok) {
+        console.error('❌ Erro na resposta da API:', response.status, response.statusText);
         if (!silent) {
           toast.error('Erro ao verificar status do pagamento');
         }
@@ -146,9 +160,13 @@ function GeneratePixContent() {
       }
       
       const data = await response.json();
+      console.log('📊 Resposta da API de status:', data);
 
       if (data.success && data.payment) {
         const payment = data.payment;
+        
+        // Log do status atual
+        console.log(`📋 Status atual: ${pixData?.status} -> ${payment.status}`);
         
         if (payment.status === 'paid') {
           // Parar verificação automática PRIMEIRO
@@ -157,12 +175,16 @@ function GeneratePixContent() {
             setStatusCheckInterval(null);
           }
           
+          console.log('✅ Pagamento aprovado! Processando...');
+          
           setPixData(prev => prev ? { ...prev, status: payment.status } : prev);
           setHasActivePix(false);
           
           // Calcular valor creditado (80% do valor original)
           const originalAmount = payment.value_cents ? (payment.value_cents / 100) : (pixData?.amount || 0);
           const creditedAmount = originalAmount * 0.8;
+          
+          console.log(`💰 Valor creditado: R$ ${creditedAmount.toFixed(2)}`);
           
           // Notificação de sucesso mais elaborada
           toast.success(
@@ -201,6 +223,8 @@ function GeneratePixContent() {
             setStatusCheckInterval(null);
           }
           
+          console.log(`❌ Pagamento ${payment.status}`);
+          
           setPixData(prev => prev ? { ...prev, status: payment.status } : prev);
           setHasActivePix(false);
           
@@ -210,9 +234,17 @@ function GeneratePixContent() {
           
           // Garantir que não haverá mais verificações
           return;
+        } else {
+          // Status ainda pendente, continuar verificando
+          if (!silent) {
+            console.log(`⏳ Status ainda pendente: ${payment.status}`);
+          }
         }
+      } else {
+        console.error('❌ Resposta da API inválida:', data);
       }
     } catch (error) {
+      console.error('❌ Erro ao verificar status:', error);
       if (!silent) {
         toast.error('Erro ao verificar status do pagamento');
       }
@@ -259,17 +291,24 @@ function GeneratePixContent() {
         throw new Error(data.message || 'Erro ao gerar PIX');
       }
 
+      console.log('✅ PIX gerado com sucesso:', data.payment);
+      
       setPixData(data.payment);
       setHasActivePix(true);
 
       // Iniciar verificação automática de status a cada 5 segundos usando referenceCode
+      console.log('🔄 Iniciando verificação automática de status...');
       const interval = setInterval(() => {
+        console.log('⏰ Executando verificação automática...');
         checkPaymentStatus(data.payment.referenceCode, true);
       }, 5000);
       setStatusCheckInterval(interval);
+      
+      console.log('📊 Interval ID:', interval);
 
       toast.success('PIX gerado com sucesso!');
     } catch (error) {
+      console.error('❌ Erro ao gerar PIX:', error);
       toast.error(error instanceof Error ? error.message : 'Erro ao gerar PIX');
     } finally {
       setLoading(false);

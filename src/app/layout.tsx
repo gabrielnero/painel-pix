@@ -22,8 +22,10 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider>
           <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900 transition-colors">
-            <DynamicHeader />
-            <main className="flex-grow container mx-auto px-4 py-8">
+            <div className="fixed top-0 left-0 right-0 z-50">
+              <DynamicHeader />
+            </div>
+            <main className="flex-grow container mx-auto px-4 py-8 pt-24">
               {children}
             </main>
             <footer className="border-t border-gray-200 dark:border-gray-700 py-4 bg-white dark:bg-gray-800">
@@ -40,6 +42,7 @@ export default function RootLayout({
                 background: '#1f2937',
                 color: '#fff',
                 border: '1px solid #374151',
+                marginTop: '80px',
               },
             }}
           />

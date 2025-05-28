@@ -40,7 +40,8 @@ export async function GET(request: NextRequest) {
           username: 'admin',
           email: 'admin@painel.com',
           role: 'admin',
-          profilePicture: null
+          profilePicture: null,
+          balance: 0 // Saldo padrão para admin local
         },
         devMode: true
       });
@@ -61,7 +62,8 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
     
-    const user = await User.findById(decoded.userId).select('username email role profilePicture');
+    // Buscar usuário incluindo o saldo
+    const user = await User.findById(decoded.userId).select('username email role profilePicture balance');
 
     if (!user) {
       return NextResponse.json({
@@ -82,7 +84,8 @@ export async function GET(request: NextRequest) {
         username: user.username,
         email: user.email,
         role: user.role,
-        profilePicture: user.profilePicture
+        profilePicture: user.profilePicture,
+        balance: user.balance || 0 // Incluir saldo na resposta
       }
     });
   } catch (error) {
