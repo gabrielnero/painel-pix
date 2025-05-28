@@ -99,14 +99,32 @@ export default function AdminDashboard() {
       const response = await fetch('/api/admin/primepag-balance');
       const data = await response.json();
 
-      if (data.success) {
-        setPrimepagAccounts(data.accounts);
+      if (data.success && Array.isArray(data.accounts)) {
+        // Validar e sanitizar dados das contas
+        const validatedAccounts = data.accounts.map((account: any) => ({
+          id: account.id || 0,
+          name: account.name || 'Conta Desconhecida',
+          data: account.data && typeof account.data === 'object' ? {
+            ...account.data,
+            account_balance: account.data.account_balance && typeof account.data.account_balance === 'object' ? {
+              available_value_cents: Number(account.data.account_balance.available_value_cents) || 0,
+              blocked_value_cents: Number(account.data.account_balance.blocked_value_cents) || 0,
+              total_value_cents: Number(account.data.account_balance.total_value_cents) || 0
+            } : null,
+            status: account.data.status || 'unknown'
+          } : null,
+          error: account.error || null
+        }));
+        
+        setPrimepagAccounts(validatedAccounts);
+        console.log('✅ Saldos PrimePag carregados:', validatedAccounts);
       } else {
+        console.warn('⚠️ Resposta inválida da API:', data);
         toast.error(data.message || 'Erro ao carregar saldos PrimePag');
         setPrimepagAccounts([]);
       }
     } catch (error) {
-      console.error('Erro ao carregar saldos PrimePag:', error);
+      console.error('❌ Erro ao carregar saldos PrimePag:', error);
       toast.error('Erro ao carregar saldos PrimePag');
       setPrimepagAccounts([]);
     } finally {
@@ -322,11 +340,11 @@ export default function AdminDashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {primepagAccounts.map((account) => (
-              <div key={account.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            {primepagAccounts.length > 0 ? primepagAccounts.map((account) => (
+              <div key={`account-${account.id}`} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {account.name}
+                    {account.name || `Conta ${account.id}`}
                   </h3>
                   <div className={`px-3 py-1 rounded-full text-xs font-medium ${
                     account.data?.status === 'active' 
@@ -342,26 +360,26 @@ export default function AdminDashboard() {
                 {account.error ? (
                   <div className="text-red-600 dark:text-red-400 text-sm">
                     <p className="font-medium">Erro ao carregar saldo:</p>
-                    <p className="mt-1">{account.error}</p>
+                    <p className="mt-1 break-words">{account.error}</p>
                   </div>
                 ) : account.data?.account_balance ? (
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600 dark:text-gray-400">Saldo Disponível:</span>
                       <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                        R$ {(account.data.account_balance.available_value_cents / 100).toFixed(2).replace('.', ',')}
+                        R$ {((account.data.account_balance.available_value_cents || 0) / 100).toFixed(2).replace('.', ',')}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600 dark:text-gray-400">Saldo Bloqueado:</span>
                       <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
-                        R$ {(account.data.account_balance.blocked_value_cents / 100).toFixed(2).replace('.', ',')}
+                        R$ {((account.data.account_balance.blocked_value_cents || 0) / 100).toFixed(2).replace('.', ',')}
                       </span>
                     </div>
                     <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
                       <span className="text-sm font-medium text-gray-900 dark:text-white">Saldo Total:</span>
                       <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                        R$ {(account.data.account_balance.total_value_cents / 100).toFixed(2).replace('.', ',')}
+                        R$ {((account.data.account_balance.total_value_cents || 0) / 100).toFixed(2).replace('.', ',')}
                       </span>
                     </div>
                   </div>
@@ -371,17 +389,24 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </div>
-            ))}
+            )) : (
+              <div className="col-span-full bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
+                {loadingBalance ? (
+                  <div className="flex flex-col items-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
+                    <p className="text-gray-600 dark:text-gray-400">Carregando saldos...</p>
+                  </div>
+                ) : (
+                  <>
+                    <FaExclamationTriangle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400">
+                      Nenhuma conta PrimePag configurada ou erro ao carregar saldos
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
           </div>
-
-          {primepagAccounts.length === 0 && !loadingBalance && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
-              <FaExclamationTriangle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
-              <p className="text-gray-600 dark:text-gray-400">
-                Nenhuma conta PrimePag configurada ou erro ao carregar saldos
-              </p>
-            </div>
-          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
