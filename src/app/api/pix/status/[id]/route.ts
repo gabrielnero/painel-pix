@@ -27,8 +27,27 @@ export async function GET(
       );
     }
 
-    // Consultar status do pagamento
-    const payment = await primepagService.getPixStatus(id);
+    // Tentar consultar status do pagamento em ambas as contas
+    let payment;
+    let accountUsed = 1;
+    
+    try {
+      // Tentar conta 1 primeiro
+      payment = await primepagService.getPixStatus(id, 1);
+      accountUsed = 1;
+    } catch (error) {
+      console.log('Erro na conta 1, tentando conta 2:', error);
+      try {
+        // Se falhar na conta 1, tentar conta 2
+        payment = await primepagService.getPixStatus(id, 2);
+        accountUsed = 2;
+      } catch (error2) {
+        console.error('Erro em ambas as contas:', { error1: error, error2 });
+        throw error; // Lançar o erro original da conta 1
+      }
+    }
+    
+    console.log(`Status consultado com sucesso na conta ${accountUsed}`);
 
     // Log para debug
     if (process.env.NODE_ENV === 'development') {

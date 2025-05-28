@@ -39,6 +39,7 @@ function GeneratePixContent() {
   const [statusCheckInterval, setStatusCheckInterval] = useState<NodeJS.Timeout | null>(null);
   const [cancelingPix, setCancelingPix] = useState(false);
   const [hasActivePix, setHasActivePix] = useState(false);
+  const [syncingStatus, setSyncingStatus] = useState(false);
   const { isActive: isMaintenanceActive, message: maintenanceMessage, estimatedTime, loading: maintenanceLoading } = useMaintenanceMode();
 
   // Verificar se o sistema está em manutenção
@@ -294,6 +295,37 @@ function GeneratePixContent() {
       toast.error('Erro ao cancelar PIX');
     } finally {
       setCancelingPix(false);
+    }
+  };
+
+  const handleSyncStatus = async () => {
+    setSyncingStatus(true);
+    try {
+      const response = await fetch('/api/pix/sync-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(data.message);
+        
+        // Se algum pagamento foi aprovado, recarregar a página
+        if (data.stats.paid > 0) {
+          // Verificar PIX ativo novamente
+          checkActivePix();
+        }
+      } else {
+        toast.error(data.message || 'Erro ao sincronizar status');
+      }
+    } catch (error) {
+      console.error('Erro ao sincronizar status:', error);
+      toast.error('Erro ao sincronizar status dos pagamentos');
+    } finally {
+      setSyncingStatus(false);
     }
   };
 
@@ -584,6 +616,14 @@ function GeneratePixContent() {
                         <FaClock className="text-yellow-500 mr-2" />
                         Este código PIX expira em 1 hora
                       </div>
+                      {pixData.status === 'pending' && (
+                        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                          <p className="text-sm text-blue-800 dark:text-blue-200">
+                            💡 <strong>Pagou e não foi creditado?</strong><br />
+                            Use o botão "Sincronizar Status" para verificar manualmente se o pagamento foi aprovado.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -616,6 +656,23 @@ function GeneratePixContent() {
                         >
                           <FaSpinner className="mr-2" />
                           Verificar Status
+                        </button>
+                        <button
+                          onClick={handleSyncStatus}
+                          disabled={syncingStatus}
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center"
+                        >
+                          {syncingStatus ? (
+                            <>
+                              <FaSpinner className="animate-spin mr-2" />
+                              Sincronizando...
+                            </>
+                          ) : (
+                            <>
+                              <FaCheckCircle className="mr-2" />
+                              Sincronizar Status
+                            </>
+                          )}
                         </button>
                       </>
                     ) : (
