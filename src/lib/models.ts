@@ -18,6 +18,7 @@ export interface IUser extends Document {
   createdAt: Date;
   lastLogin?: Date;
   // Novos campos de perfil
+  name?: string; // Nome completo do usuário
   profilePicture?: string;
   bio?: string;
   location?: string;
@@ -61,7 +62,7 @@ export interface IPayment extends Document {
 
 export interface IWalletTransaction extends Document {
   userId: mongoose.Types.ObjectId;
-  type: 'credit' | 'debit';
+  type: 'credit' | 'debit' | 'withdrawal';
   amount: number;
   description: string;
   paymentId?: mongoose.Types.ObjectId;
@@ -69,6 +70,7 @@ export interface IWalletTransaction extends Document {
   balanceBefore: number;
   balanceAfter: number;
   createdAt: Date;
+  metadata?: mongoose.Schema.Types.Mixed;
 }
 
 export interface ISystemConfig extends Document {
@@ -114,6 +116,14 @@ export interface IWithdrawal extends Document {
   primepagAccount: 1 | 2;
   failureReason?: string;
   metadata?: mongoose.Schema.Types.Mixed;
+  // Novos campos para aprovação/rejeição
+  approvedBy?: mongoose.Types.ObjectId;
+  approvedAt?: Date;
+  rejectedBy?: mongoose.Types.ObjectId;
+  rejectedAt?: Date;
+  rejectionReason?: string;
+  pixPaymentId?: string;
+  pixPaymentStatus?: string;
 }
 
 export interface INotification extends Document {
@@ -194,6 +204,11 @@ const UserSchema = new Schema<IUser>({
     type: Date
   },
   // Novos campos de perfil
+  name: {
+    type: String,
+    maxlength: 100,
+    default: ''
+  },
   profilePicture: {
     type: String,
     default: null
@@ -324,7 +339,7 @@ const WalletTransactionSchema = new Schema<IWalletTransaction>({
   },
   type: {
     type: String,
-    enum: ['credit', 'debit'],
+    enum: ['credit', 'debit', 'withdrawal'],
     required: true
   },
   amount: {
@@ -354,6 +369,9 @@ const WalletTransactionSchema = new Schema<IWalletTransaction>({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  metadata: {
+    type: mongoose.Schema.Types.Mixed
   }
 });
 
@@ -506,6 +524,30 @@ const WithdrawalSchema = new Schema<IWithdrawal>({
   },
   metadata: {
     type: mongoose.Schema.Types.Mixed
+  },
+  // Novos campos para aprovação/rejeição
+  approvedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  approvedAt: {
+    type: Date
+  },
+  rejectedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  rejectedAt: {
+    type: Date
+  },
+  rejectionReason: {
+    type: String
+  },
+  pixPaymentId: {
+    type: String
+  },
+  pixPaymentStatus: {
+    type: String
   }
 });
 

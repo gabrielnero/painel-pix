@@ -24,25 +24,29 @@ export async function POST(
     // Conectar ao banco
     await connectToDatabase();
 
-    // Buscar o pagamento
+    // Buscar o pagamento com múltiplas possibilidades de ID
     const payment = await Payment.findOne({
-      $or: [
-        { _id: id },
-        { referenceCode: id },
-        { idempotentId: id }
-      ],
-      userId: authResult.userId
+      $and: [
+        {
+          $or: [
+            { _id: id },
+            { referenceCode: id },
+            { idempotentId: id }
+          ]
+        },
+        { userId: authResult.userId }
+      ]
     });
 
     if (!payment) {
       return NextResponse.json(
-        { success: false, message: 'Pagamento não encontrado' },
+        { success: false, message: 'Pagamento não encontrado ou não pertence a você' },
         { status: 404 }
       );
     }
 
     // Verificar se o pagamento pode ser cancelado
-    if (payment.status !== 'pending') {
+    if (payment.status !== 'pending' && payment.status !== 'awaiting_payment') {
       return NextResponse.json(
         { 
           success: false, 
@@ -57,20 +61,27 @@ export async function POST(
     payment.cancelledAt = new Date();
     await payment.save();
 
-    console.log(`PIX cancelado: ${payment._id} pelo usuário ${authResult.userId}`);
+    console.log(`✅ PIX cancelado com sucesso:`, {
+      paymentId: payment._id,
+      referenceCode: payment.referenceCode,
+      userId: authResult.userId,
+      amount: payment.amount
+    });
 
     return NextResponse.json({
       success: true,
       message: 'PIX cancelado com sucesso',
       payment: {
         id: payment._id,
+        referenceCode: payment.referenceCode,
         status: payment.status,
-        cancelledAt: payment.cancelledAt
+        cancelledAt: payment.cancelledAt,
+        amount: payment.amount
       }
     });
 
   } catch (error) {
-    console.error('Erro ao cancelar PIX:', error);
+    console.error('❌ Erro ao cancelar PIX:', error);
     return NextResponse.json(
       {
         success: false,

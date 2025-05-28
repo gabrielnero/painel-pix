@@ -56,6 +56,37 @@ interface QRCodeStatusResponse {
   [key: string]: any; // Para campos não mapeados
 }
 
+interface PixPaymentRequest {
+  initiation_type: 'dict' | 'manual';
+  idempotent_id: string;
+  receiver_name: string;
+  receiver_document: string;
+  value_cents: number;
+  pix_key_type?: 'cpf' | 'cnpj' | 'email' | 'phone' | 'random';
+  pix_key?: string;
+  receiver_bank_ispb?: string;
+  receiver_agency?: string;
+  receiver_account?: string;
+  receiver_account_type?: 'CACC' | 'SVGS';
+  authorized?: boolean;
+  account?: 1 | 2;
+}
+
+interface PixPaymentResponse {
+  id: string;
+  status: 'authorization_pending' | 'sent' | 'completed' | 'failed' | 'cancelled';
+  value_cents: number;
+  receiver_name: string;
+  receiver_document: string;
+  pix_key?: string;
+  pix_key_type?: string;
+  created_at: string;
+  updated_at?: string;
+  end_to_end?: string;
+  failure_reason?: string;
+  authorization_url?: string;
+}
+
 class PrimepagService {
   private static instance: PrimepagService;
   private accessTokens: Map<number, { token: string; expiration: Date }> = new Map();
@@ -385,49 +416,164 @@ class PrimepagService {
   // Método para recuperar saldo da conta
   async getAccountBalance(accountNumber: 1 | 2 = 1): Promise<any> {
     try {
-      console.log(`🏦 Recuperando saldo da conta ${accountNumber}...`);
+      console.log(`=== CONSULTANDO SALDO CONTA ${accountNumber} ===`);
       
       const token = await this.ensureAuthenticated(accountNumber);
-      if (!token) {
-        throw new Error(`Falha ao obter token de acesso para conta ${accountNumber}`);
-      }
+      
+      const response = await axios.get(
+        `${BASE_URL}/v1/account/balance`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      const response = await fetch(`${BASE_URL}/v1/account/balance`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      console.log(`✅ Saldo consultado com sucesso - Conta ${accountNumber}:`, response.data);
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Erro ao consultar saldo - Conta ${accountNumber}:`, error);
+      if (axios.isAxiosError(error)) {
+        console.error('Detalhes do erro:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data
+        });
+      }
+      throw new Error(`Erro ao consultar saldo da conta ${accountNumber}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  public async sendPixPayment(data: PixPaymentRequest): Promise<PixPaymentResponse> {
+    try {
+      const accountNumber = data.account || 1;
+      console.log(`=== ENVIANDO PIX PAYMENT - CONTA ${accountNumber} ===`);
+      console.log('Dados da transferência:', {
+        initiation_type: data.initiation_type,
+        idempotent_id: data.idempotent_id,
+        receiver_name: data.receiver_name,
+        receiver_document: data.receiver_document,
+        value_cents: data.value_cents,
+        pix_key_type: data.pix_key_type,
+        pix_key: data.pix_key ? `${data.pix_key.substring(0, 5)}***` : undefined,
+        authorized: data.authorized,
+        account: accountNumber
       });
 
-      console.log(`📊 Resposta do saldo (conta ${accountNumber}):`, response.status, response.statusText);
+      const token = await this.ensureAuthenticated(accountNumber);
+      
+      // Preparar dados da requisição
+      const requestData: any = {
+        initiation_type: data.initiation_type,
+        idempotent_id: data.idempotent_id,
+        receiver_name: data.receiver_name,
+        receiver_document: data.receiver_document,
+        value_cents: Math.round(data.value_cents),
+        authorized: data.authorized || false
+      };
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`❌ Erro ao recuperar saldo (conta ${accountNumber}):`, errorText);
-        throw new Error(`Erro HTTP ${response.status}: ${errorText}`);
+      // Adicionar campos específicos baseado no tipo de iniciação
+      if (data.initiation_type === 'dict' && data.pix_key && data.pix_key_type) {
+        requestData.pix_key_type = data.pix_key_type;
+        requestData.pix_key = data.pix_key;
+      } else if (data.initiation_type === 'manual') {
+        requestData.receiver_bank_ispb = data.receiver_bank_ispb;
+        requestData.receiver_agency = data.receiver_agency;
+        requestData.receiver_account = data.receiver_account;
+        requestData.receiver_account_type = data.receiver_account_type || 'CACC';
       }
 
-      const data = await response.json();
-      console.log(`✅ Saldo recuperado (conta ${accountNumber}):`, data);
+      console.log('Enviando requisição para PrimePag...');
+      console.log('URL:', `${BASE_URL}/v1/pix/payments`);
+      console.log('Dados da requisição:', {
+        ...requestData,
+        pix_key: requestData.pix_key ? `${requestData.pix_key.substring(0, 5)}***` : undefined
+      });
 
-      return {
-        success: true,
-        account: accountNumber,
-        balance: data.data?.account_balance || {
-          available_value_cents: 0,
-          blocked_value_cents: 0,
-          total_value_cents: 0
-        },
-        status: data.status
-      };
+      const response = await axios.post<PixPaymentResponse>(
+        `${BASE_URL}/v1/pix/payments`,
+        requestData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('✅ PIX enviado com sucesso:', {
+        id: response.data.id,
+        status: response.data.status,
+        value_cents: response.data.value_cents,
+        receiver_name: response.data.receiver_name,
+        created_at: response.data.created_at
+      });
+
+      return response.data;
     } catch (error) {
-      console.error(`❌ Erro ao recuperar saldo da conta ${accountNumber}:`, error);
-      return {
-        success: false,
-        account: accountNumber,
-        error: error instanceof Error ? error.message : String(error)
-      };
+      const accountNumber = data.account || 1;
+      console.error(`❌ Erro ao enviar PIX - Conta ${accountNumber}:`, error);
+      if (axios.isAxiosError(error)) {
+        console.error('Detalhes do erro:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: error.config?.url
+        });
+        
+        // Tratar erros específicos da API
+        if (error.response?.status === 400) {
+          const errorData = error.response.data;
+          throw new Error(`Dados inválidos: ${errorData.message || JSON.stringify(errorData)}`);
+        } else if (error.response?.status === 401) {
+          throw new Error('Não autorizado - verifique as credenciais da API');
+        } else if (error.response?.status === 403) {
+          throw new Error('Acesso negado - conta sem permissão para enviar PIX');
+        } else if (error.response?.status === 422) {
+          const errorData = error.response.data;
+          throw new Error(`Erro de validação: ${errorData.message || JSON.stringify(errorData)}`);
+        }
+      }
+      throw new Error(`Erro ao enviar PIX: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  public async getPixPaymentStatus(paymentId: string, accountNumber: 1 | 2 = 1): Promise<PixPaymentResponse> {
+    try {
+      console.log(`=== CONSULTANDO STATUS PIX PAYMENT - CONTA ${accountNumber} ===`);
+      console.log('Payment ID:', paymentId);
+
+      const token = await this.ensureAuthenticated(accountNumber);
+      
+      const response = await axios.get<PixPaymentResponse>(
+        `${BASE_URL}/v1/pix/payments/${paymentId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('✅ Status consultado com sucesso:', {
+        id: response.data.id,
+        status: response.data.status,
+        value_cents: response.data.value_cents,
+        updated_at: response.data.updated_at
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Erro ao consultar status PIX payment - Conta ${accountNumber}:`, error);
+      if (axios.isAxiosError(error)) {
+        console.error('Detalhes do erro:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data
+        });
+      }
+      throw new Error(`Erro ao consultar status do PIX payment: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

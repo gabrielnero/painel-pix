@@ -19,10 +19,10 @@ export async function GET(request: NextRequest) {
     // Conectar ao banco
     await connectToDatabase();
 
-    // Buscar PIX pendente mais recente do usuário
+    // Buscar PIX pendente ou aguardando pagamento mais recente do usuário
     const activePix = await Payment.findOne({
       userId: authResult.userId,
-      status: 'pending',
+      status: { $in: ['pending', 'awaiting_payment'] },
       expiresAt: { $gt: new Date() } // Não expirado
     }).sort({ createdAt: -1 }); // Mais recente primeiro
 
@@ -33,6 +33,13 @@ export async function GET(request: NextRequest) {
         message: 'Nenhum PIX ativo encontrado'
       });
     }
+
+    console.log('📋 PIX ativo encontrado:', {
+      id: activePix._id,
+      referenceCode: activePix.referenceCode,
+      status: activePix.status,
+      amount: activePix.amount
+    });
 
     return NextResponse.json({
       success: true,
@@ -50,7 +57,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Erro ao verificar PIX ativo:', error);
+    console.error('❌ Erro ao verificar PIX ativo:', error);
     return NextResponse.json(
       {
         success: false,

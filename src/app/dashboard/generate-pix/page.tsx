@@ -611,10 +611,34 @@ function GeneratePixContent() {
                   </button>
                   
                   {hasActivePix && (
-                    <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                      <p className="text-sm text-yellow-800 dark:text-yellow-200 text-center">
-                        ⚠️ Você já possui um PIX ativo. Aguarde o pagamento ou cancele para gerar um novo.
-                      </p>
+                    <div className="mt-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-2">
+                            ⚠️ <strong>Você já possui um PIX pendente.</strong>
+                          </p>
+                          <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                            Aguarde o pagamento ser concluído ou cancele para gerar um novo.
+                          </p>
+                        </div>
+                        <button
+                          onClick={handleCancelPix}
+                          disabled={cancelingPix}
+                          className="ml-3 px-3 py-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition-colors duration-300 flex items-center"
+                        >
+                          {cancelingPix ? (
+                            <>
+                              <FaSpinner className="animate-spin mr-1 h-3 w-3" />
+                              Cancelando...
+                            </>
+                          ) : (
+                            <>
+                              <FaTimesCircle className="mr-1 h-3 w-3" />
+                              Cancelar PIX
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
