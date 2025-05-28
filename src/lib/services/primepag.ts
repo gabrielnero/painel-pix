@@ -257,24 +257,26 @@ class PrimepagService {
 
   public async getPixStatus(referenceCode: string, accountNumber: 1 | 2 = 1): Promise<QRCodeStatusResponse> {
     try {
+      console.log(`=== CONSULTANDO STATUS PIX - CONTA ${accountNumber} ===`);
+      console.log('Reference Code:', referenceCode);
+      
       const token = await this.ensureAuthenticated(accountNumber);
+      console.log('Token obtido com sucesso');
 
-      console.log('Consultando status PIX para referenceCode:', referenceCode);
+      const url = `${BASE_URL}/v1/pix/qrcodes/${referenceCode}`;
+      console.log('URL da consulta:', url);
 
-      const response = await axios.get<any>(
-        `${BASE_URL}/v1/pix/qrcodes/${referenceCode}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+      const response = await axios.get<any>(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      );
+      });
 
-      console.log('Resposta completa da API PrimePag:', {
+      console.log('Resposta da API PrimePag:', {
         status: response.status,
-        headers: response.headers,
-        data: response.data
+        statusText: response.statusText,
+        hasData: !!response.data
       });
 
       // Verificar se a resposta tem a estrutura esperada
@@ -312,20 +314,46 @@ class PrimepagService {
         };
       }
 
-      console.log('Dados normalizados:', normalizedData);
+      console.log('Dados normalizados:', {
+        reference_code: normalizedData.reference_code,
+        status: normalizedData.status,
+        value_cents: normalizedData.value_cents,
+        external_reference: normalizedData.external_reference
+      });
 
       return normalizedData;
     } catch (error) {
-      console.error('Erro ao consultar status do PIX:', error);
+      console.error(`=== ERRO AO CONSULTAR STATUS PIX - CONTA ${accountNumber} ===`);
+      console.error('Reference Code:', referenceCode);
+      
       if (axios.isAxiosError(error)) {
         console.error('Detalhes do erro Axios:', {
           status: error.response?.status,
           statusText: error.response?.statusText,
           data: error.response?.data,
-          url: error.config?.url
+          url: error.config?.url,
+          message: error.message
         });
+        
+        // Tratar diferentes tipos de erro HTTP
+        if (error.response?.status === 404) {
+          throw new Error(`PIX não encontrado na conta ${accountNumber} (404)`);
+        } else if (error.response?.status === 401) {
+          throw new Error(`Erro de autenticação na conta ${accountNumber} (401)`);
+        } else if (error.response?.status === 403) {
+          throw new Error(`Acesso negado na conta ${accountNumber} (403)`);
+        } else if (error.response?.status && error.response.status >= 500) {
+          throw new Error(`Erro interno do servidor PrimePag na conta ${accountNumber} (${error.response.status})`);
+        } else {
+          throw new Error(`Erro HTTP ${error.response?.status || 'desconhecido'} na conta ${accountNumber}: ${error.response?.statusText || 'erro desconhecido'}`);
+        }
+      } else if (error instanceof Error) {
+        console.error('Erro não-HTTP:', error.message);
+        throw new Error(`Erro ao consultar PIX na conta ${accountNumber}: ${error.message}`);
+      } else {
+        console.error('Erro desconhecido:', error);
+        throw new Error(`Erro desconhecido ao consultar PIX na conta ${accountNumber}`);
       }
-      throw new Error('Falha ao consultar status do PIX');
     }
   }
 
