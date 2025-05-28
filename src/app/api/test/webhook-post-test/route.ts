@@ -58,81 +58,102 @@ export async function POST(request: NextRequest) {
       // URL do webhook
       const webhookUrl = `${process.env.NEXTAUTH_URL || 'https://www.top1xreceiver.org'}/api/webhook/primepag`;
       
-      // Diferentes payloads para testar
+      // Diferentes payloads para testar baseados na documentação PrimePag
       const payloadsToTest = [
         {
-          name: 'Payload Padrão',
+          name: 'Payload PrimePag Oficial - PIX Payment',
           data: {
             url: webhookUrl,
-            notification_type: 'pix_payment',
-            active: true
+            notification_type: 'pix_payment'
           }
         },
         {
-          name: 'Payload Simples',
+          name: 'Payload PrimePag Oficial - PIX QRCode',
           data: {
             url: webhookUrl,
-            events: ['pix_payment']
+            notification_type: 'pix_qrcode'
           }
         },
         {
-          name: 'Payload com Event Types',
+          name: 'Payload PrimePag Oficial - PIX Static QRCode',
           data: {
             url: webhookUrl,
-            event_types: ['pix_payment', 'pix_qrcode']
+            notification_type: 'pix_static_qrcode'
           }
         },
         {
-          name: 'Payload Mínimo',
+          name: 'Payload Múltiplos Tipos',
           data: {
-            url: webhookUrl
+            url: webhookUrl,
+            notification_types: ['pix_payment', 'pix_qrcode', 'pix_static_qrcode']
           }
         }
       ];
 
       const testResults = [];
 
-      for (const payload of payloadsToTest) {
-        try {
-          console.log(`Testando ${payload.name}:`, payload.data);
-          
-          const response = await axios.post(
-            `${BASE_URL}/v1/webhooks`,
-            payload.data,
-            {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              },
-              timeout: 15000
-            }
-          );
+      // Testar diferentes endpoints baseados na documentação
+      const endpointsToTest = [
+        '/v1/webhook',        // Endpoint singular (mais provável baseado na doc)
+        '/v1/webhooks',       // Endpoint plural (que testamos antes)
+        '/webhook',           // Sem versão
+        '/webhooks'           // Sem versão plural
+      ];
 
-          testResults.push({
-            payload: payload.name,
-            success: true,
-            status: response.status,
-            data: response.data,
-            message: 'Webhook criado com sucesso!'
-          });
+      let webhookCreated = false;
 
-          console.log(`✅ ${payload.name}: Sucesso!`, response.data);
-          break; // Se um funcionar, parar de testar
+      for (const endpoint of endpointsToTest) {
+        if (webhookCreated) break;
 
-        } catch (error) {
-          const status = axios.isAxiosError(error) ? error.response?.status : 'unknown';
-          const errorData = axios.isAxiosError(error) ? error.response?.data : null;
-          
-          testResults.push({
-            payload: payload.name,
-            success: false,
-            status,
-            error: axios.isAxiosError(error) ? error.message : String(error),
-            errorData,
-            details: errorData
-          });
+        console.log(`\n=== TESTANDO ENDPOINT: ${endpoint} ===`);
 
-          console.log(`❌ ${payload.name}: ${status}`, errorData);
+        for (const payload of payloadsToTest) {
+          if (webhookCreated) break;
+
+          try {
+            console.log(`Testando ${payload.name} no endpoint ${endpoint}:`, payload.data);
+            
+            const response = await axios.post(
+              `${BASE_URL}${endpoint}`,
+              payload.data,
+              {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+                timeout: 15000
+              }
+            );
+
+            testResults.push({
+              endpoint,
+              payload: payload.name,
+              success: true,
+              status: response.status,
+              data: response.data,
+              message: 'Webhook criado com sucesso!'
+            });
+
+            console.log(`✅ ${payload.name} no ${endpoint}: Sucesso!`, response.data);
+            webhookCreated = true;
+            break;
+
+          } catch (error) {
+            const status = axios.isAxiosError(error) ? error.response?.status : 'unknown';
+            const errorData = axios.isAxiosError(error) ? error.response?.data : null;
+            
+            testResults.push({
+              endpoint,
+              payload: payload.name,
+              success: false,
+              status,
+              error: axios.isAxiosError(error) ? error.message : String(error),
+              errorData,
+              details: errorData
+            });
+
+            console.log(`❌ ${payload.name} no ${endpoint}: ${status}`, errorData);
+          }
         }
       }
 

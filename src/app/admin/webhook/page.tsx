@@ -45,6 +45,7 @@ export default function AdminWebhookPage() {
   const [configuringAccount1, setConfiguringAccount1] = useState(false);
   const [testingEndpoints, setTestingEndpoints] = useState(false);
   const [testingWebhookPost, setTestingWebhookPost] = useState(false);
+  const [testingWebhookTypes, setTestingWebhookTypes] = useState(false);
 
   useEffect(() => {
     fetchWebhookConfig();
@@ -286,6 +287,42 @@ export default function AdminWebhookPage() {
       toast.error('Erro ao testar POST webhook');
     } finally {
       setTestingWebhookPost(false);
+    }
+  };
+
+  const testWebhookTypes = async () => {
+    setTestingWebhookTypes(true);
+    try {
+      const response = await fetch('/api/test/webhook-types');
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Consulta de tipos de webhook concluída!');
+        console.log('Tipos de webhook disponíveis:', data);
+        
+        // Mostrar resultados detalhados
+        data.results.forEach((result: any) => {
+          if (result.success) {
+            const workingCount = result.endpointResults?.filter((e: any) => e.success).length || 0;
+            const totalCount = result.endpointResults?.length || 0;
+            toast.success(`✅ Conta ${result.account}: ${workingCount}/${totalCount} endpoints de tipos funcionando`);
+            
+            // Log dos tipos disponíveis
+            if (result.availableTypes?.length > 0) {
+              console.log(`Tipos disponíveis na conta ${result.account}:`, result.availableTypes);
+            }
+          } else {
+            toast.error(`❌ Erro na conta ${result.account}: ${result.message}`);
+          }
+        });
+      } else {
+        toast.error(data.message || 'Erro ao consultar tipos de webhook');
+      }
+    } catch (error) {
+      console.error('Erro ao consultar tipos de webhook:', error);
+      toast.error('Erro ao consultar tipos de webhook');
+    } finally {
+      setTestingWebhookTypes(false);
     }
   };
 
@@ -611,6 +648,27 @@ export default function AdminWebhookPage() {
               <>
                 <FaCog className="mr-2" />
                 Testar POST Webhook
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Botão para testar tipos de webhook */}
+        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <button
+            onClick={testWebhookTypes}
+            disabled={testingWebhookTypes}
+            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
+          >
+            {testingWebhookTypes ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Testando...
+              </>
+            ) : (
+              <>
+                <FaCog className="mr-2" />
+                Testar Tipos de Webhook
               </>
             )}
           </button>
