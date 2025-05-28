@@ -37,6 +37,8 @@ function GeneratePixContent() {
   const [loading, setLoading] = useState(false);
   const [pixData, setPixData] = useState<PixData | null>(null);
   const [statusCheckInterval, setStatusCheckInterval] = useState<NodeJS.Timeout | null>(null);
+  const [cancelingPix, setCancelingPix] = useState(false);
+  const [hasActivePix, setHasActivePix] = useState(false);
   const { isActive: isMaintenanceActive, message: maintenanceMessage, estimatedTime, loading: maintenanceLoading } = useMaintenanceMode();
 
   // Verificar se o sistema está em manutenção
@@ -49,6 +51,11 @@ function GeneratePixContent() {
     );
   }
 
+  // Verificar PIX ativo ao carregar
+  useEffect(() => {
+    checkActivePix();
+  }, []);
+
   // Limpar intervalo ao desmontar
   useEffect(() => {
     return () => {
@@ -57,6 +64,29 @@ function GeneratePixContent() {
       }
     };
   }, [statusCheckInterval]);
+
+  const checkActivePix = async () => {
+    try {
+      const response = await fetch('/api/pix/active');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.payment) {
+          setPixData(data.payment);
+          setHasActivePix(true);
+          
+          // Iniciar verificação automática se o PIX estiver pendente
+          if (data.payment.status === 'pending') {
+            const interval = setInterval(() => {
+              checkPaymentStatus(data.payment.referenceCode, true);
+            }, 5000);
+            setStatusCheckInterval(interval);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao verificar PIX ativo:', error);
+    }
+  };
 
   // Formatação automática do valor
   const formatCurrency = (value: string) => {
@@ -127,6 +157,7 @@ function GeneratePixContent() {
           }
           
           setPixData(prev => prev ? { ...prev, status: payment.status } : prev);
+          setHasActivePix(false);
           
           // Calcular valor creditado (80% do valor original)
           // Usar o valor do payment ou do pixData atual
@@ -148,6 +179,7 @@ function GeneratePixContent() {
           }
           
           setPixData(prev => prev ? { ...prev, status: payment.status } : prev);
+          setHasActivePix(false);
           
           if (!silent) {
             toast.error(`Pagamento ${payment.status === 'expired' ? 'expirado' : 'cancelado'}`);
@@ -205,6 +237,7 @@ function GeneratePixContent() {
       }
 
       setPixData(data.payment);
+      setHasActivePix(true);
 
       // Iniciar verificação automática de status a cada 5 segundos usando referenceCode
       const interval = setInterval(() => {
@@ -227,10 +260,48 @@ function GeneratePixContent() {
     }
   };
 
+  const handleCancelPix = async () => {
+    if (!pixData) return;
+    
+    setCancelingPix(true);
+    try {
+      const response = await fetch(`/api/pix/cancel/${pixData.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Parar verificação automática
+        if (statusCheckInterval) {
+          clearInterval(statusCheckInterval);
+          setStatusCheckInterval(null);
+        }
+        
+        // Atualizar status para cancelado
+        setPixData(prev => prev ? { ...prev, status: 'cancelled' } : prev);
+        setHasActivePix(false);
+        
+        toast.success('PIX cancelado com sucesso!');
+      } else {
+        toast.error(data.message || 'Erro ao cancelar PIX');
+      }
+    } catch (error) {
+      console.error('Erro ao cancelar PIX:', error);
+      toast.error('Erro ao cancelar PIX');
+    } finally {
+      setCancelingPix(false);
+    }
+  };
+
   const handleNewPayment = () => {
     setPixData(null);
     setAmount('');
     setDescription('');
+    setHasActivePix(false);
     if (statusCheckInterval) {
       clearInterval(statusCheckInterval);
       setStatusCheckInterval(null);
@@ -382,13 +453,18 @@ function GeneratePixContent() {
                 <div className="pt-4">
                   <button
                     type="submit"
-                    disabled={loading || !amount || !description}
+                    disabled={loading || !amount || !description || hasActivePix}
                     className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-300 flex items-center justify-center"
                   >
                     {loading ? (
                       <>
                         <FaSpinner className="animate-spin mr-2" />
                         Gerando PIX...
+                      </>
+                    ) : hasActivePix ? (
+                      <>
+                        <FaClock className="mr-2" />
+                        PIX Ativo - Aguarde conclusão
                       </>
                     ) : (
                       <>
@@ -397,6 +473,14 @@ function GeneratePixContent() {
                       </>
                     )}
                   </button>
+                  
+                  {hasActivePix && (
+                    <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200 text-center">
+                        ⚠️ Você já possui um PIX ativo. Aguarde o pagamento ou cancele para gerar um novo.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </form>
             </div>
@@ -428,24 +512,42 @@ function GeneratePixContent() {
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                       QR Code PIX
                     </h3>
-                    {pixData.qrCodeImage ? (
+                    {pixData.qrCodeImage && pixData.qrCodeImage !== 'null' ? (
                       <div className="inline-block bg-white p-4 rounded-xl shadow-md">
                         <img
-                          src={pixData.qrCodeImage}
+                          src={pixData.qrCodeImage.startsWith('data:') ? pixData.qrCodeImage : `data:image/png;base64,${pixData.qrCodeImage}`}
                           alt="QR Code PIX"
                           className="w-64 h-64 mx-auto"
                           onError={(e) => {
                             console.error('Erro ao carregar QR Code:', e);
-                            e.currentTarget.style.display = 'none';
+                            console.log('QR Code URL:', pixData.qrCodeImage);
+                            // Tentar gerar QR Code alternativo
+                            const fallbackUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixData.pixCopiaECola)}`;
+                            e.currentTarget.src = fallbackUrl;
+                          }}
+                          onLoad={() => {
+                            console.log('QR Code carregado com sucesso');
                           }}
                         />
                       </div>
                     ) : (
-                      <div className="w-64 h-64 mx-auto border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl flex items-center justify-center">
-                        <div className="text-center">
-                          <FaQrcode className="mx-auto text-4xl text-gray-400 mb-2" />
-                          <p className="text-sm text-gray-500">QR Code não disponível</p>
-                        </div>
+                      <div className="inline-block bg-white p-4 rounded-xl shadow-md">
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixData.pixCopiaECola)}`}
+                          alt="QR Code PIX"
+                          className="w-64 h-64 mx-auto"
+                          onError={(e) => {
+                            console.error('Erro ao carregar QR Code alternativo:', e);
+                            e.currentTarget.parentElement!.innerHTML = `
+                              <div class="w-64 h-64 mx-auto border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl flex items-center justify-center">
+                                <div class="text-center">
+                                  <div class="mx-auto text-4xl text-gray-400 mb-2">📱</div>
+                                  <p class="text-sm text-gray-500">Use o código PIX abaixo</p>
+                                </div>
+                              </div>
+                            `;
+                          }}
+                        />
                       </div>
                     )}
                   </div>
@@ -489,20 +591,42 @@ function GeneratePixContent() {
                 {/* Ações */}
                 <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
                   <div className="flex flex-col sm:flex-row gap-4">
-                    <button
-                      onClick={handleNewPayment}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center"
-                    >
-                      <FaPlus className="mr-2" />
-                      Gerar Novo PIX
-                    </button>
-                    <button
-                      onClick={() => checkPaymentStatus(pixData.id)}
-                      className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center"
-                    >
-                      <FaSpinner className="mr-2" />
-                      Verificar Status
-                    </button>
+                    {pixData.status === 'pending' ? (
+                      <>
+                        <button
+                          onClick={handleCancelPix}
+                          disabled={cancelingPix}
+                          className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center"
+                        >
+                          {cancelingPix ? (
+                            <>
+                              <FaSpinner className="animate-spin mr-2" />
+                              Cancelando...
+                            </>
+                          ) : (
+                            <>
+                              <FaTimesCircle className="mr-2" />
+                              Cancelar PIX
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => checkPaymentStatus(pixData.id)}
+                          className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center"
+                        >
+                          <FaSpinner className="mr-2" />
+                          Verificar Status
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={handleNewPayment}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center"
+                      >
+                        <FaPlus className="mr-2" />
+                        Gerar Novo PIX
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

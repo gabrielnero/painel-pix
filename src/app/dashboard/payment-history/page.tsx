@@ -64,6 +64,7 @@ export default function PaymentHistoryPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [cancelingPayment, setCancelingPayment] = useState<string | null>(null);
 
   const fetchHistory = async (page: number = 1) => {
     try {
@@ -156,6 +157,37 @@ export default function PaymentHistoryPage() {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success('Copiado para a área de transferência!');
+  };
+
+  const cancelPayment = async (paymentId: string) => {
+    setCancelingPayment(paymentId);
+    try {
+      const response = await fetch(`/api/pix/cancel/${paymentId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('PIX cancelado com sucesso!');
+        // Recarregar histórico
+        fetchHistory(currentPage);
+        // Fechar modal se estiver aberto
+        if (selectedPayment?.id === paymentId) {
+          setSelectedPayment(null);
+        }
+      } else {
+        toast.error(data.message || 'Erro ao cancelar PIX');
+      }
+    } catch (error) {
+      console.error('Erro ao cancelar PIX:', error);
+      toast.error('Erro ao cancelar PIX');
+    } finally {
+      setCancelingPayment(null);
+    }
   };
 
   if (loading && !history) {
@@ -344,6 +376,20 @@ export default function PaymentHistoryPage() {
                       >
                         <FaCopy />
                       </button>
+                      {payment.status === 'pending' && (
+                        <button
+                          onClick={() => cancelPayment(payment.id)}
+                          disabled={cancelingPayment === payment.id}
+                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Cancelar PIX"
+                        >
+                          {cancelingPayment === payment.id ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                          ) : (
+                            <FaTimesCircle />
+                          )}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -497,6 +543,29 @@ export default function PaymentHistoryPage() {
                     </button>
                   </div>
                 </div>
+                
+                {/* Botões de ação */}
+                {selectedPayment.status === 'pending' && (
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                      onClick={() => cancelPayment(selectedPayment.id)}
+                      disabled={cancelingPayment === selectedPayment.id}
+                      className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center"
+                    >
+                      {cancelingPayment === selectedPayment.id ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Cancelando...
+                        </>
+                      ) : (
+                        <>
+                          <FaTimesCircle className="mr-2" />
+                          Cancelar PIX
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

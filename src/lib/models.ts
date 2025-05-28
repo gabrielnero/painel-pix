@@ -55,6 +55,7 @@ export interface IPayment extends Document {
   expiresAt: Date;
   createdAt: Date;
   paidAt?: Date;
+  cancelledAt?: Date;
 }
 
 export interface IWalletTransaction extends Document {
@@ -273,6 +274,9 @@ const PaymentSchema = new Schema<IPayment>({
     default: Date.now
   },
   paidAt: {
+    type: Date
+  },
+  cancelledAt: {
     type: Date
   }
 });
