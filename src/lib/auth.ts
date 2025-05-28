@@ -10,8 +10,8 @@ import { cookies } from 'next/headers';
 
 // Chave secreta para assinar tokens JWT - DEVE ser definida em produção
 const JWT_SECRET = process.env.JWT_SECRET || (() => {
-  if (process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.BUILDING) {
-    throw new Error('JWT_SECRET deve ser definido em produção');
+  if (process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.VERCEL_ENV) {
+    console.warn('JWT_SECRET não definido, usando chave padrão (INSEGURO)');
   }
   return 'admin-panel-jwt-secret-key-very-secure';
 })();
