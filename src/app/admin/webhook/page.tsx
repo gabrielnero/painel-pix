@@ -44,6 +44,7 @@ export default function AdminWebhookPage() {
   const [configuring, setConfiguring] = useState(false);
   const [configuringAccount1, setConfiguringAccount1] = useState(false);
   const [testingEndpoints, setTestingEndpoints] = useState(false);
+  const [testingWebhookPost, setTestingWebhookPost] = useState(false);
 
   useEffect(() => {
     fetchWebhookConfig();
@@ -247,6 +248,44 @@ export default function AdminWebhookPage() {
       toast.error('Erro ao testar endpoints da PrimePag');
     } finally {
       setTestingEndpoints(false);
+    }
+  };
+
+  const testWebhookPost = async () => {
+    setTestingWebhookPost(true);
+    try {
+      const response = await fetch('/api/test/webhook-post-test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Teste de POST webhook concluído com sucesso!');
+        console.log('Resultados do POST webhook:', data);
+        
+        // Mostrar resultados detalhados
+        data.results.forEach((result: any) => {
+          if (result.success) {
+            toast.success(`✅ Webhook criado na Conta ${result.account} com ${result.successfulPayload}!`);
+            console.log(`Payload que funcionou:`, result.successfulPayload);
+            console.log(`Dados do webhook criado:`, result.testResults.find((t: any) => t.success)?.data);
+          } else {
+            toast.error(`❌ Falha na Conta ${result.account}`);
+            console.log(`Detalhes dos testes:`, result.testResults);
+          }
+        });
+      } else {
+        toast.error(data.message || 'Erro ao testar POST webhook');
+        console.error('Erro no teste:', data);
+      }
+    } catch (error) {
+      console.error('Erro ao testar POST webhook:', error);
+      toast.error('Erro ao testar POST webhook');
+    } finally {
+      setTestingWebhookPost(false);
     }
   };
 
@@ -551,6 +590,27 @@ export default function AdminWebhookPage() {
               <>
                 <FaCog className="mr-2" />
                 Testar Endpoints da PrimePag
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Botão para testar POST webhook */}
+        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <button
+            onClick={testWebhookPost}
+            disabled={testingWebhookPost}
+            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
+          >
+            {testingWebhookPost ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Testando...
+              </>
+            ) : (
+              <>
+                <FaCog className="mr-2" />
+                Testar POST Webhook
               </>
             )}
           </button>
