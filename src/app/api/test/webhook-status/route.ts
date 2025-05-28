@@ -64,7 +64,20 @@ export async function GET(request: NextRequest) {
           }
         );
 
-        const webhooks = webhooksResponse.data;
+        // Garantir que webhooks seja sempre um array
+        let webhooks = [];
+        const responseData = webhooksResponse.data;
+        if (Array.isArray(responseData)) {
+          webhooks = responseData;
+        } else if (responseData && Array.isArray(responseData.webhooks)) {
+          webhooks = responseData.webhooks;
+        } else if (responseData && Array.isArray(responseData.data)) {
+          webhooks = responseData.data;
+        } else {
+          console.log(`Resposta inesperada da API de webhooks (conta ${account}):`, responseData);
+          webhooks = [];
+        }
+
         const expectedUrl = `${process.env.NEXTAUTH_URL || 'https://www.top1xreceiver.org'}/api/webhook/primepag`;
         
         // Verificar se nosso webhook está configurado

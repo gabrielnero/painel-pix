@@ -38,25 +38,57 @@ interface WebhookStatus {
 
 export default function WebhookDebugPage() {
   const [status, setStatus] = useState<WebhookStatus | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [testLoading, setTestLoading] = useState(false);
+  const [authTestLoading, setAuthTestLoading] = useState(false);
+  const [results, setResults] = useState<any>(null);
 
   const checkWebhookStatus = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
       const response = await fetch('/api/test/webhook-status');
       const data = await response.json();
       
       if (data.success) {
-        setStatus(data);
-        toast.success('Status do webhook verificado com sucesso');
+        setResults(data);
+        toast.success('Status do webhook verificado');
       } else {
-        toast.error(data.message || 'Erro ao verificar status do webhook');
+        toast.error(data.message || 'Erro ao verificar webhook');
       }
     } catch (error) {
-      console.error('Erro ao verificar status do webhook:', error);
+      console.error('Erro ao verificar webhook:', error);
       toast.error('Erro ao verificar status do webhook');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const testAuthentication = async () => {
+    try {
+      setAuthTestLoading(true);
+      const response = await fetch('/api/test/auth-primepag');
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('Resultado do teste de autenticação:', data);
+        toast.success('Teste de autenticação concluído - veja o console');
+        
+        // Mostrar resultados específicos
+        data.results.forEach((result: any) => {
+          if (result.success) {
+            toast.success(`✅ Conta ${result.account}: Autenticação OK`);
+          } else {
+            toast.error(`❌ Conta ${result.account}: ${result.message}`);
+          }
+        });
+      } else {
+        toast.error(data.message || 'Erro no teste de autenticação');
+      }
+    } catch (error) {
+      console.error('Erro no teste de autenticação:', error);
+      toast.error('Erro ao testar autenticação');
+    } finally {
+      setAuthTestLoading(false);
     }
   };
 
@@ -111,19 +143,42 @@ export default function WebhookDebugPage() {
           </p>
         </div>
 
-        {/* Botão de Refresh */}
-        <div className="mb-6">
+        {/* Botões de Ação */}
+        <div className="flex flex-wrap gap-4 mb-8">
           <button
             onClick={checkWebhookStatus}
             disabled={loading}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center"
           >
             {loading ? (
-              <FaSpinner className="animate-spin mr-2" />
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Verificando...
+              </>
             ) : (
-              <FaSync className="mr-2" />
+              <>
+                <FaSync className="mr-2" />
+                Verificar Status
+              </>
             )}
-            {loading ? 'Verificando...' : 'Atualizar Status'}
+          </button>
+
+          <button
+            onClick={testAuthentication}
+            disabled={authTestLoading}
+            className="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center"
+          >
+            {authTestLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Testando...
+              </>
+            ) : (
+              <>
+                <FaBug className="mr-2" />
+                Testar Autenticação
+              </>
+            )}
           </button>
         </div>
 
