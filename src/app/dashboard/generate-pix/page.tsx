@@ -42,6 +42,20 @@ function GeneratePixContent() {
   const [syncingStatus, setSyncingStatus] = useState(false);
   const { isActive: isMaintenanceActive, message: maintenanceMessage, estimatedTime, loading: maintenanceLoading } = useMaintenanceMode();
 
+  // Debug: Monitorar mudanças no pixData
+  useEffect(() => {
+    if (pixData) {
+      console.log('🔄 Estado pixData atualizado:', {
+        id: pixData.id,
+        status: pixData.status,
+        amount: pixData.amount,
+        hasButtons: pixData.status === 'pending' || pixData.status === 'awaiting_payment'
+      });
+    } else {
+      console.log('🔄 Estado pixData limpo (null)');
+    }
+  }, [pixData]);
+
   // Verificar se o sistema está em manutenção
   if (!maintenanceLoading && isMaintenanceActive) {
     return (
@@ -76,24 +90,37 @@ function GeneratePixContent() {
         
         if (data.success && data.payment) {
           console.log('📋 PIX ativo encontrado:', data.payment);
-          setPixData(data.payment);
-          setHasActivePix(true);
           
-          // Iniciar verificação automática se o PIX estiver pendente
-          if (data.payment.status === 'pending' || data.payment.status === 'awaiting_payment') {
-            console.log('🔄 Iniciando verificação automática para PIX ativo...');
+          // Se já temos um pixData sendo exibido, não sobrescrever
+          // Isso evita que os botões desapareçam durante a verificação automática
+          if (!pixData) {
+            setPixData(data.payment);
+            setHasActivePix(true);
             
-            const interval = setInterval(() => {
-              console.log('⏰ Executando verificação automática (PIX ativo)...');
-              autoSyncStatus(true);
-            }, 5000);
-            setStatusCheckInterval(interval);
-            console.log('📊 Interval ID (PIX ativo):', interval);
+            // Iniciar verificação automática se o PIX estiver pendente
+            if (data.payment.status === 'pending' || data.payment.status === 'awaiting_payment') {
+              console.log('🔄 Iniciando verificação automática para PIX ativo...');
+              
+              const interval = setInterval(() => {
+                console.log('⏰ Executando verificação automática (PIX ativo)...');
+                autoSyncStatus(true);
+              }, 5000);
+              setStatusCheckInterval(interval);
+              console.log('📊 Interval ID (PIX ativo):', interval);
+            } else {
+              console.log(`ℹ️ PIX ativo com status final: ${data.payment.status}`);
+            }
           } else {
-            console.log(`ℹ️ PIX ativo com status final: ${data.payment.status}`);
+            // Se já temos pixData, apenas atualizar hasActivePix se necessário
+            setHasActivePix(true);
+            console.log('ℹ️ PIX já sendo exibido, não sobrescrever estado');
           }
         } else {
           console.log('ℹ️ Nenhum PIX ativo encontrado');
+          // Só limpar o estado se não estivermos exibindo um PIX
+          if (!pixData) {
+            setHasActivePix(false);
+          }
         }
       } else {
         console.error('❌ Erro ao verificar PIX ativo:', response.status, response.statusText);
@@ -472,9 +499,6 @@ function GeneratePixContent() {
             console.log('⏳ Nenhum pagamento aprovado ainda via sync');
           }
         }
-        
-        // Verificar PIX ativo novamente para atualizar status
-        await checkActivePix();
       } else {
         if (!silent) {
           console.error('❌ Erro na resposta do sync-status:', data.message);
@@ -767,7 +791,7 @@ function GeneratePixContent() {
                 {/* Ações */}
                 <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
                   <div className="flex flex-col sm:flex-row gap-4">
-                    {pixData.status === 'pending' ? (
+                    {(pixData.status === 'pending' || pixData.status === 'awaiting_payment') ? (
                       <>
                         <button
                           onClick={handleCancelPix}
