@@ -4,26 +4,33 @@ import { connectToDatabase } from '@/lib/db';
 import { User, Payment } from '@/lib/models';
 
 interface WebhookMessage {
-  reference_code: string;
-  idempotent_id: string;
-  value_cents: number;
-  status: 'paid' | 'expired' | 'cancelled';
-  paid_at?: string;
+  notification_type: string;
+  message: {
+    reference_code: string;
+    idempotent_id: string;
+    value_cents: number;
+    status: 'completed' | 'expired' | 'cancelled';
+    paid_at?: string;
+    payment_date?: string;
+  };
+  md5: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { message, signature } = body;
+    const body = await request.json() as WebhookMessage;
+    const { notification_type, message, md5 } = body;
 
-    if (!message || !signature) {
+    console.log('Webhook recebido:', { notification_type, message, md5 });
+
+    if (!message || !md5) {
       return NextResponse.json(
         { error: 'Dados do webhook inválidos' },
         { status: 400 }
       );
     }
 
-    // Verificar assinatura do webhook
+    // Verificar assinatura do webhook conforme documentação PrimePag
     const secretKey = process.env.PRIMEPAG_SECRET_KEY;
     if (!secretKey) {
       console.error('PRIMEPAG_SECRET_KEY não configurada');
@@ -33,12 +40,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Hash MD5 conforme documentação: payment.{reference_code}.{idempotent_id}.{value_cents}.{secret_key}
     const expectedSignature = crypto
-      .createHash('sha256')
+      .createHash('md5')
       .update(`payment.${message.reference_code}.${message.idempotent_id}.${message.value_cents}.${secretKey}`)
       .digest('hex');
 
-    if (signature !== expectedSignature) {
+    console.log('Verificando assinatura:', {
+      received: md5,
+      expected: expectedSignature,
+      string: `payment.${message.reference_code}.${message.idempotent_id}.${message.value_cents}.${secretKey}`
+    });
+
+    if (md5 !== expectedSignature) {
       console.error('Assinatura do webhook inválida');
       return NextResponse.json(
         { error: 'Assinatura inválida' },
@@ -58,15 +72,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Atualizar status do pagamento
-    payment.status = message.status;
-    if (message.paid_at) {
-      payment.paidAt = new Date(message.paid_at);
+    // Atualizar status do pagamento (converter 'completed' para 'paid')
+    const normalizedStatus = message.status === 'completed' ? 'paid' : message.status;
+    payment.status = normalizedStatus;
+    
+    if (message.paid_at || message.payment_date) {
+      payment.paidAt = new Date(message.paid_at || message.payment_date!);
     }
     await payment.save();
 
     // Se o pagamento foi aprovado, creditar na carteira do usuário
-    if (message.status === 'paid') {
+    if (normalizedStatus === 'paid') {
       const user = await User.findById(payment.userId);
       if (user) {
         // Calcular valor a ser creditado (80% do valor original)

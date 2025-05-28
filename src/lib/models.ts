@@ -56,6 +56,7 @@ export interface IPayment extends Document {
   createdAt: Date;
   paidAt?: Date;
   cancelledAt?: Date;
+  primepagAccount?: 1 | 2; // Salvar qual conta da PrimePag foi usada
 }
 
 export interface IWalletTransaction extends Document {
@@ -278,6 +279,11 @@ const PaymentSchema = new Schema<IPayment>({
   },
   cancelledAt: {
     type: Date
+  },
+  primepagAccount: {
+    type: Number,
+    enum: [1, 2],
+    default: 1
   }
 });
 

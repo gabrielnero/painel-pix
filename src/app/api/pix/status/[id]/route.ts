@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { primepagService } from '@/lib/services/primepag';
 import { verifyAuth } from '@/lib/auth';
+import { connectToDatabase } from '@/lib/db';
+import { Payment } from '@/lib/models';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,24 +29,40 @@ export async function GET(
       );
     }
 
-    // Tentar consultar status do pagamento em ambas as contas
+    // Primeiro, tentar encontrar o pagamento no banco para saber qual conta usar
+    await connectToDatabase();
     let payment;
     let accountUsed = 1;
     
     try {
-      // Tentar conta 1 primeiro
-      payment = await primepagService.getPixStatus(id, 1);
-      accountUsed = 1;
-    } catch (error) {
-      console.log('Erro na conta 1, tentando conta 2:', error);
-      try {
-        // Se falhar na conta 1, tentar conta 2
-        payment = await primepagService.getPixStatus(id, 2);
-        accountUsed = 2;
-      } catch (error2) {
-        console.error('Erro em ambas as contas:', { error1: error, error2 });
-        throw error; // Lançar o erro original da conta 1
+      const dbPayment = await Payment.findOne({
+        $or: [
+          { referenceCode: id },
+          { _id: id },
+          { idempotentId: id }
+        ]
+      });
+
+      if (dbPayment && dbPayment.primepagAccount) {
+        // Se encontrou no banco, usar a conta correta
+        console.log(`Usando conta ${dbPayment.primepagAccount} baseada no banco de dados`);
+        payment = await primepagService.getPixStatus(id, dbPayment.primepagAccount);
+        accountUsed = dbPayment.primepagAccount;
+      } else {
+        // Se não encontrou no banco, tentar ambas as contas
+        console.log('Pagamento não encontrado no banco, tentando ambas as contas...');
+        try {
+          payment = await primepagService.getPixStatus(id, 1);
+          accountUsed = 1;
+        } catch (error) {
+          console.log('Erro na conta 1, tentando conta 2:', error);
+          payment = await primepagService.getPixStatus(id, 2);
+          accountUsed = 2;
+        }
       }
+    } catch (error) {
+      console.error('Erro ao consultar status do PIX:', error);
+      throw error;
     }
     
     console.log(`Status consultado com sucesso na conta ${accountUsed}`);

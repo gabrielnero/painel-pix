@@ -137,7 +137,8 @@ export async function POST(request: NextRequest) {
         qrCodeImage: primepagResponse.qrcode.image_base64 || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(primepagResponse.qrcode.content)}`,
         referenceCode: primepagResponse.qrcode.reference_code,
         idempotentId: primepagResponse.qrcode.reference_code,
-        expiresAt: expirationDate
+        expiresAt: expirationDate,
+        primepagAccount: account || 1 // Salvar qual conta foi usada
       });
 
       console.log('Pagamento PIX criado:', payment._id);
