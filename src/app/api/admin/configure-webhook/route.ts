@@ -80,15 +80,46 @@ export async function POST(request: NextRequest) {
         // Primeiro, listar webhooks existentes para verificar se já existe
         let existingWebhooks = [];
         try {
-          const listResponse = await axios.get(
-            `${BASE_URL}/v1/webhooks`,
-            {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+          // Tentar diferentes endpoints possíveis
+          let listResponse;
+          try {
+            // Tentar endpoint v1/webhooks primeiro
+            listResponse = await axios.get(
+              `${BASE_URL}/v1/webhooks`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
               }
+            );
+          } catch (firstError) {
+            console.log(`Tentativa 1 falhou (v1/webhooks), tentando v1/webhook...`);
+            try {
+              // Tentar endpoint v1/webhook (singular)
+              listResponse = await axios.get(
+                `${BASE_URL}/v1/webhook`,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  }
+                }
+              );
+            } catch (secondError) {
+              console.log(`Tentativa 2 falhou (v1/webhook), tentando webhooks...`);
+              // Tentar endpoint webhooks (sem versão)
+              listResponse = await axios.get(
+                `${BASE_URL}/webhooks`,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  }
+                }
+              );
             }
-          );
+          }
           
           // Garantir que existingWebhooks seja sempre um array
           const responseData = listResponse.data;
@@ -132,20 +163,61 @@ export async function POST(request: NextRequest) {
 
         // Configurar webhook para notificações de pagamento PIX
         console.log(`Registrando novo webhook na conta ${accountNumber}...`);
-        const webhookResponse = await axios.post(
-          `${BASE_URL}/v1/webhooks`,
-          {
-            url: webhookUrl,
-            notification_type: 'pix_payment',
-            active: true
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
+        
+        let webhookResponse;
+        try {
+          // Tentar endpoint v1/webhooks primeiro
+          webhookResponse = await axios.post(
+            `${BASE_URL}/v1/webhooks`,
+            {
+              url: webhookUrl,
+              notification_type: 'pix_payment',
+              active: true
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
             }
+          );
+        } catch (firstError) {
+          console.log(`Tentativa 1 falhou (v1/webhooks), tentando v1/webhook...`);
+          try {
+            // Tentar endpoint v1/webhook (singular)
+            webhookResponse = await axios.post(
+              `${BASE_URL}/v1/webhook`,
+              {
+                url: webhookUrl,
+                notification_type: 'pix_payment',
+                active: true
+              },
+              {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              }
+            );
+          } catch (secondError) {
+            console.log(`Tentativa 2 falhou (v1/webhook), tentando webhooks...`);
+            // Tentar endpoint webhooks (sem versão)
+            webhookResponse = await axios.post(
+              `${BASE_URL}/webhooks`,
+              {
+                url: webhookUrl,
+                notification_type: 'pix_payment',
+                active: true
+              },
+              {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              }
+            );
           }
-        );
+        }
 
         console.log(`✅ Webhook configurado com sucesso - Conta ${accountNumber}:`, webhookResponse.data);
 

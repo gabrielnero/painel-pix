@@ -43,6 +43,7 @@ export default function AdminWebhookPage() {
   const [testValue, setTestValue] = useState('2.00');
   const [configuring, setConfiguring] = useState(false);
   const [configuringAccount1, setConfiguringAccount1] = useState(false);
+  const [testingEndpoints, setTestingEndpoints] = useState(false);
 
   useEffect(() => {
     fetchWebhookConfig();
@@ -209,6 +210,43 @@ export default function AdminWebhookPage() {
       toast.error('Erro ao executar teste do webhook');
     } finally {
       setTestLoading(false);
+    }
+  };
+
+  const testPrimepagEndpoints = async () => {
+    setTestingEndpoints(true);
+    try {
+      const response = await fetch('/api/test/primepag-endpoints');
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Teste de endpoints concluído!');
+        console.log('Resultados dos endpoints:', data);
+        
+        // Mostrar resultados detalhados
+        data.results.forEach((result: any) => {
+          if (result.success) {
+            const workingCount = result.workingEndpoints?.length || 0;
+            const totalCount = result.endpoints?.length || 0;
+            toast.success(`Conta ${result.account}: ${workingCount}/${totalCount} endpoints funcionando`);
+            
+            // Log dos endpoints que funcionam
+            if (result.workingEndpoints?.length > 0) {
+              console.log(`Endpoints funcionando na conta ${result.account}:`, 
+                result.workingEndpoints.map((e: any) => e.endpoint));
+            }
+          } else {
+            toast.error(`Erro na conta ${result.account}: ${result.message}`);
+          }
+        });
+      } else {
+        toast.error(data.message || 'Erro ao testar endpoints');
+      }
+    } catch (error) {
+      console.error('Erro ao testar endpoints:', error);
+      toast.error('Erro ao testar endpoints da PrimePag');
+    } finally {
+      setTestingEndpoints(false);
     }
   };
 
@@ -492,6 +530,27 @@ export default function AdminWebhookPage() {
               <>
                 <FaCog className="mr-2" />
                 Configurar Webhook na Conta 1
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Botão para testar endpoints da PrimePag */}
+        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <button
+            onClick={testPrimepagEndpoints}
+            disabled={testingEndpoints}
+            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
+          >
+            {testingEndpoints ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Testando...
+              </>
+            ) : (
+              <>
+                <FaCog className="mr-2" />
+                Testar Endpoints da PrimePag
               </>
             )}
           </button>
