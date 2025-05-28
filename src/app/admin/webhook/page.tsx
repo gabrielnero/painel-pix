@@ -51,6 +51,7 @@ export default function AdminWebhookPage() {
   const [scanningEndpoints, setScanningEndpoints] = useState(false);
   const [analyzingWebhooks, setAnalyzingWebhooks] = useState(false);
   const [detailedLogging, setDetailedLogging] = useState(false);
+  const [finalSolution, setFinalSolution] = useState(false);
 
   useEffect(() => {
     fetchWebhookConfig();
@@ -527,6 +528,46 @@ export default function AdminWebhookPage() {
     }
   };
 
+  const testFinalSolution = async () => {
+    setFinalSolution(true);
+    try {
+      const response = await fetch('/api/debug/webhook-final-solution', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('🎉 WEBHOOK CRIADO COM SUCESSO!');
+        console.log('=== SOLUÇÃO FINAL FUNCIONOU ===');
+        console.log('Dados completos:', data);
+        console.log('Endpoint que funcionou:', data.endpoint);
+        console.log('Payload usado:', data.payload);
+        console.log('Resposta da PrimePag:', data.response);
+        
+        toast.success(`✅ Endpoint: ${data.endpoint}`);
+        toast.success(`🔑 Webhook Type ID: ${data.webhookTypeId}`);
+      } else {
+        toast.error('❌ Solução final falhou');
+        console.log('=== SOLUÇÃO FINAL FALHOU ===');
+        console.log('Erro:', data);
+        console.log('Payload testado:', data.payload);
+        console.log('Endpoints testados:', data.testedEndpoints);
+        
+        if (data.webhookTypeId) {
+          toast.success(`🔑 ID do tipo encontrado: ${data.webhookTypeId}`);
+        }
+      }
+    } catch (error) {
+      console.error('Erro na solução final:', error);
+      toast.error('Erro na solução final');
+    } finally {
+      setFinalSolution(false);
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success('Copiado para a área de transferência!');
@@ -975,6 +1016,27 @@ export default function AdminWebhookPage() {
               <>
                 <FaCog className="mr-2" />
                 Testar Log Detalhado
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Botão para testar solução final */}
+        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <button
+            onClick={testFinalSolution}
+            disabled={finalSolution}
+            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
+          >
+            {finalSolution ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Testando...
+              </>
+            ) : (
+              <>
+                <FaCog className="mr-2" />
+                Testar Solução Final
               </>
             )}
           </button>
