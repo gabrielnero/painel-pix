@@ -37,6 +37,8 @@ function GeneratePixContent() {
   const [loading, setLoading] = useState(false);
   const [pixData, setPixData] = useState<PixData | null>(null);
   const [statusCheckInterval, setStatusCheckInterval] = useState<NodeJS.Timeout | null>(null);
+  const [nextCheckCountdown, setNextCheckCountdown] = useState<number>(0);
+  const [countdownInterval, setCountdownInterval] = useState<NodeJS.Timeout | null>(null);
   const [cancelingPix, setCancelingPix] = useState(false);
   const [hasActivePix, setHasActivePix] = useState(false);
   const [syncingStatus, setSyncingStatus] = useState(false);
@@ -63,8 +65,11 @@ function GeneratePixContent() {
       if (statusCheckInterval) {
         clearInterval(statusCheckInterval);
       }
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+      }
     };
-  }, [statusCheckInterval]);
+  }, [statusCheckInterval, countdownInterval]);
 
   const checkActivePix = async () => {
     try {
@@ -82,9 +87,23 @@ function GeneratePixContent() {
           // Iniciar verificação automática se o PIX estiver pendente
           if (data.payment.status === 'pending' || data.payment.status === 'awaiting_payment') {
             console.log('🔄 Iniciando verificação automática para PIX ativo...');
+            
+            // Configurar contagem regressiva
+            setNextCheckCountdown(5);
+            const countdown = setInterval(() => {
+              setNextCheckCountdown(prev => {
+                if (prev <= 1) {
+                  return 5; // Reset para 5 segundos
+                }
+                return prev - 1;
+              });
+            }, 1000);
+            setCountdownInterval(countdown);
+            
             const interval = setInterval(() => {
               console.log('⏰ Executando verificação automática (PIX ativo)...');
               checkPaymentStatus(data.payment.referenceCode, true);
+              setNextCheckCountdown(5); // Reset countdown
             }, 5000);
             setStatusCheckInterval(interval);
             console.log('📊 Interval ID (PIX ativo):', interval);
@@ -140,13 +159,21 @@ function GeneratePixContent() {
         if (statusCheckInterval) {
           clearInterval(statusCheckInterval);
           setStatusCheckInterval(null);
+          console.log('🛑 Verificação automática parada - pagamento já finalizado');
+        }
+        if (countdownInterval) {
+          clearInterval(countdownInterval);
+          setCountdownInterval(null);
+          setNextCheckCountdown(0);
         }
         return;
       }
       
-      // Log para debug
+      // Log para debug (apenas se não for silent)
       if (!silent) {
         console.log('🔍 Verificando status do pagamento:', paymentId);
+      } else {
+        console.log('🔄 Auto-check:', paymentId.substring(0, 8) + '...');
       }
       
       const response = await fetch(`/api/pix/status/${paymentId}`);
@@ -160,19 +187,31 @@ function GeneratePixContent() {
       }
       
       const data = await response.json();
-      console.log('📊 Resposta da API de status:', data);
+      
+      // Log apenas se não for silent ou se houver mudança de status
+      if (!silent || (data.payment && data.payment.status !== pixData?.status)) {
+        console.log('📊 Resposta da API de status:', data);
+      }
 
       if (data.success && data.payment) {
         const payment = data.payment;
         
-        // Log do status atual
-        console.log(`📋 Status atual: ${pixData?.status} -> ${payment.status}`);
+        // Log do status apenas se houver mudança
+        if (payment.status !== pixData?.status) {
+          console.log(`📋 Status mudou: ${pixData?.status} -> ${payment.status}`);
+        }
         
         if (payment.status === 'paid') {
           // Parar verificação automática PRIMEIRO
           if (statusCheckInterval) {
             clearInterval(statusCheckInterval);
             setStatusCheckInterval(null);
+            console.log('🛑 Verificação automática parada - pagamento aprovado');
+          }
+          if (countdownInterval) {
+            clearInterval(countdownInterval);
+            setCountdownInterval(null);
+            setNextCheckCountdown(0);
           }
           
           console.log('✅ Pagamento aprovado! Processando...');
@@ -204,7 +243,6 @@ function GeneratePixContent() {
           );
           
           // Forçar atualização do saldo no header
-          // Disparar evento customizado para atualizar UserInfo
           window.dispatchEvent(new CustomEvent('balanceUpdated', {
             detail: { newBalance: creditedAmount }
           }));
@@ -214,13 +252,18 @@ function GeneratePixContent() {
             window.location.href = '/dashboard';
           }, 5000);
           
-          // Garantir que não haverá mais verificações
           return;
         } else if (payment.status === 'expired' || payment.status === 'cancelled') {
           // Parar verificação automática PRIMEIRO
           if (statusCheckInterval) {
             clearInterval(statusCheckInterval);
             setStatusCheckInterval(null);
+            console.log(`🛑 Verificação automática parada - pagamento ${payment.status}`);
+          }
+          if (countdownInterval) {
+            clearInterval(countdownInterval);
+            setCountdownInterval(null);
+            setNextCheckCountdown(0);
           }
           
           console.log(`❌ Pagamento ${payment.status}`);
@@ -232,10 +275,14 @@ function GeneratePixContent() {
             toast.error(`Pagamento ${payment.status === 'expired' ? 'expirado' : 'cancelado'}`);
           }
           
-          // Garantir que não haverá mais verificações
           return;
         } else {
-          // Status ainda pendente, continuar verificando
+          // Status ainda pendente, atualizar se necessário
+          if (payment.status !== pixData?.status) {
+            setPixData(prev => prev ? { ...prev, status: payment.status } : prev);
+          }
+          
+          // Log apenas se não for silent
           if (!silent) {
             console.log(`⏳ Status ainda pendente: ${payment.status}`);
           }
@@ -298,15 +345,40 @@ function GeneratePixContent() {
 
       // Iniciar verificação automática de status a cada 5 segundos usando referenceCode
       console.log('🔄 Iniciando verificação automática de status...');
+      
+      // Configurar contagem regressiva
+      setNextCheckCountdown(5);
+      const countdown = setInterval(() => {
+        setNextCheckCountdown(prev => {
+          if (prev <= 1) {
+            return 5; // Reset para 5 segundos
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      setCountdownInterval(countdown);
+      
       const interval = setInterval(() => {
-        console.log('⏰ Executando verificação automática...');
+        console.log('⏰ Executando verificação automática de status...');
         checkPaymentStatus(data.payment.referenceCode, true);
-      }, 5000);
+        setNextCheckCountdown(5); // Reset countdown
+      }, 5000); // Verificar a cada 5 segundos
       setStatusCheckInterval(interval);
       
-      console.log('📊 Interval ID:', interval);
+      console.log('📊 Interval ID configurado:', interval);
 
-      toast.success('PIX gerado com sucesso!');
+      toast.success('PIX gerado com sucesso! Verificação automática iniciada.');
+      
+      // Mostrar toast informativo sobre a verificação automática
+      setTimeout(() => {
+        toast.success('🔄 Verificando pagamento automaticamente a cada 5 segundos...', {
+          duration: 3000,
+          style: {
+            background: '#3B82F6',
+            color: 'white'
+          }
+        });
+      }, 1000);
     } catch (error) {
       console.error('❌ Erro ao gerar PIX:', error);
       toast.error(error instanceof Error ? error.message : 'Erro ao gerar PIX');
@@ -341,6 +413,11 @@ function GeneratePixContent() {
         if (statusCheckInterval) {
           clearInterval(statusCheckInterval);
           setStatusCheckInterval(null);
+        }
+        if (countdownInterval) {
+          clearInterval(countdownInterval);
+          setCountdownInterval(null);
+          setNextCheckCountdown(0);
         }
         
         // Atualizar status para cancelado
@@ -425,6 +502,11 @@ function GeneratePixContent() {
     if (statusCheckInterval) {
       clearInterval(statusCheckInterval);
       setStatusCheckInterval(null);
+    }
+    if (countdownInterval) {
+      clearInterval(countdownInterval);
+      setCountdownInterval(null);
+      setNextCheckCountdown(0);
     }
   };
 
@@ -708,6 +790,19 @@ function GeneratePixContent() {
                         <FaClock className="text-yellow-500 mr-2" />
                         Este código PIX expira em 1 hora
                       </div>
+                      {statusCheckInterval && pixData.status === 'pending' && (
+                        <div className="flex items-center text-sm text-blue-600 dark:text-blue-400">
+                          <div className="animate-pulse mr-2">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          </div>
+                          Verificando pagamento automaticamente a cada 5 segundos
+                          {nextCheckCountdown > 0 && (
+                            <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded-full">
+                              próxima em {nextCheckCountdown}s
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {pixData.status === 'pending' && (
                         <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                           <p className="text-sm text-blue-800 dark:text-blue-200">
