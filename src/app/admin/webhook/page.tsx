@@ -41,6 +41,7 @@ export default function AdminWebhookPage() {
   const [testLoading, setTestLoading] = useState(false);
   const [testReferenceCode, setTestReferenceCode] = useState('');
   const [testValue, setTestValue] = useState('2.00');
+  const [configuring, setConfiguring] = useState(false);
 
   useEffect(() => {
     fetchWebhookConfig();
@@ -48,21 +49,59 @@ export default function AdminWebhookPage() {
 
   const fetchWebhookConfig = async () => {
     try {
-      setLoading(true);
       const response = await fetch('/api/admin/webhook-config');
       const data = await response.json();
-
+      
       if (data.success) {
         setConfig(data.config);
         setInstructions(data.instructions);
       } else {
-        toast.error('Erro ao carregar configuração do webhook');
+        toast.error(data.message || 'Erro ao carregar configuração');
       }
     } catch (error) {
-      console.error('Erro ao buscar configuração:', error);
-      toast.error('Erro ao carregar configuração');
+      console.error('Erro ao carregar configuração:', error);
+      toast.error('Erro ao carregar configuração do webhook');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const configureWebhook = async () => {
+    setConfiguring(true);
+    try {
+      const response = await fetch('/api/admin/configure-webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({})
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(data.message);
+        console.log('Resultado da configuração:', data);
+        
+        // Mostrar detalhes dos resultados
+        if (data.results) {
+          data.results.forEach((result: any) => {
+            if (result.success) {
+              toast.success(`✅ Conta ${result.account}: ${result.message}`);
+            } else {
+              toast.error(`❌ Conta ${result.account}: ${result.message}`);
+            }
+          });
+        }
+      } else {
+        toast.error(data.message || 'Erro ao configurar webhook');
+        console.error('Erro na configuração:', data);
+      }
+    } catch (error) {
+      console.error('Erro ao configurar webhook:', error);
+      toast.error('Erro ao configurar webhook automaticamente');
+    } finally {
+      setConfiguring(false);
     }
   };
 
@@ -349,6 +388,27 @@ export default function AdminWebhookPage() {
               </p>
             </div>
           )}
+        </div>
+
+        {/* Botão para configurar automaticamente o webhook */}
+        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <button
+            onClick={configureWebhook}
+            disabled={configuring}
+            className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center"
+          >
+            {configuring ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Configurando...
+              </>
+            ) : (
+              <>
+                <FaCog className="mr-2" />
+                Configurar Webhook Automaticamente
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>
