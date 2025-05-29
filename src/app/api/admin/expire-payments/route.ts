@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     // Calcular timestamp de 30 minutos atrás
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
     
     // Por enquanto, retornar sucesso simulado
-    // TODO: Implementar expiração real quando o banco estiver configurado
+    // TODO: Implementar expiração real quando o banco estiver estável
     
     const expiredCount = Math.floor(Math.random() * 5) + 1; // Simular alguns vencimentos
 

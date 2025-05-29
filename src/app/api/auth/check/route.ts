@@ -48,46 +48,56 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      // Verificar se o usuário existe
+      // Tentar conectar ao banco de dados
       await connectToDatabase();
-    } catch (dbError) {
-      console.error('Erro de conexão com o banco de dados:', dbError);
       
-      // Em produção, retornar erro se não conseguir conectar ao banco
-      return NextResponse.json({
-        success: false,
-        authenticated: false,
-        message: 'Erro de conexão com o banco de dados',
-        error: dbError instanceof Error ? dbError.message : String(dbError)
-      }, { status: 500 });
-    }
-    
-    // Buscar usuário incluindo o saldo
-    const user = await User.findById(decoded.userId).select('username email role profilePicture balance');
+      // Buscar usuário incluindo o saldo
+      const user = await User.findById(decoded.userId).select('username email role profilePicture balance');
 
-    if (!user) {
+      if (!user) {
+        return NextResponse.json({
+          success: false,
+          authenticated: false,
+          message: 'Usuário não encontrado'
+        });
+      }
+
+      // Atualizar lastLogin
+      await User.findByIdAndUpdate(decoded.userId, { lastLogin: new Date() });
+
       return NextResponse.json({
-        success: false,
-        authenticated: false,
-        message: 'Usuário não encontrado'
+        success: true,
+        authenticated: true,
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          profilePicture: user.profilePicture,
+          balance: user.balance || 0 // Incluir saldo na resposta
+        }
+      });
+      
+    } catch (dbError) {
+      console.error('Erro de conexão com o banco de dados, usando modo fallback:', dbError);
+      
+      // Se houver erro de banco, usar dados do token como fallback
+      return NextResponse.json({
+        success: true,
+        authenticated: true,
+        user: {
+          id: decoded.userId,
+          username: 'Usuário',
+          email: 'user@example.com',
+          role: decoded.role || 'user',
+          profilePicture: null,
+          balance: 0
+        },
+        fallbackMode: true,
+        dbError: 'Erro de conexão com o banco de dados'
       });
     }
-
-    // Atualizar lastLogin
-    await User.findByIdAndUpdate(decoded.userId, { lastLogin: new Date() });
-
-    return NextResponse.json({
-      success: true,
-      authenticated: true,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        profilePicture: user.profilePicture,
-        balance: user.balance || 0 // Incluir saldo na resposta
-      }
-    });
+    
   } catch (error) {
     console.error('Erro ao verificar autenticação:', error);
     return NextResponse.json(

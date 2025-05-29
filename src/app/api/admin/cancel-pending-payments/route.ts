@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     // Por enquanto, retornar sucesso simulado
-    // TODO: Implementar cancelamento real quando o banco estiver configurado
+    // TODO: Implementar cancelamento real quando o banco estiver estável
     
     const cancelledCount = Math.floor(Math.random() * 10) + 1; // Simular alguns cancelamentos
 
