@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { FaPaperPlane, FaComments, FaUser } from 'react-icons/fa';
+import { FaPaperPlane, FaComments, FaUser, FaImage, FaTrash, FaTimes } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 
 interface Message {
@@ -13,6 +13,7 @@ interface Message {
   createdAt: Date;
   role: 'user' | 'moderator' | 'admin';
   profilePicture?: string;
+  imageUrl?: string;
 }
 
 export default function Shoutbox() {
@@ -21,7 +22,11 @@ export default function Shoutbox() {
   const [userInfo, setUserInfo] = useState({ username: '', role: 'user', profilePicture: '' });
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchUserInfo();
@@ -80,17 +85,22 @@ export default function Shoutbox() {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !userInfo.username || sending) return;
+    if ((!newMessage.trim() && !selectedImage) || !userInfo.username || sending) return;
 
     setSending(true);
 
     try {
+      const formData = new FormData();
+      if (newMessage.trim()) {
+        formData.append('message', newMessage.trim());
+      }
+      if (selectedImage) {
+        formData.append('image', selectedImage);
+      }
+
       const response = await fetch('/api/shoutbox', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message: newMessage.trim() }),
+        body: formData,
       });
 
       const data = await response.json();
@@ -99,6 +109,8 @@ export default function Shoutbox() {
         // Adicionar a nova mensagem à lista
         setMessages(prev => [...prev, data.message]);
         setNewMessage('');
+        setSelectedImage(null);
+        setImagePreview(null);
         toast.success('Mensagem enviada!');
       } else {
         toast.error(data.message || 'Erro ao enviar mensagem');
@@ -115,6 +127,74 @@ export default function Shoutbox() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
+    }
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Verificar tamanho (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Imagem muito grande. Máximo 5MB.');
+        return;
+      }
+
+      // Verificar tipo
+      if (!file.type.startsWith('image/')) {
+        toast.error('Apenas imagens são permitidas.');
+        return;
+      }
+
+      setSelectedImage(file);
+      
+      // Criar preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const clearAllMessages = async () => {
+    if (userInfo.role !== 'admin') {
+      toast.error('Apenas administradores podem limpar mensagens');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Tem certeza que deseja limpar TODAS as mensagens do fórum?\n\nEsta ação não pode ser desfeita.'
+    );
+
+    if (!confirmed) return;
+
+    setClearing(true);
+    try {
+      const response = await fetch('/api/shoutbox/clear', {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setMessages([]);
+        toast.success('Todas as mensagens foram removidas');
+      } else {
+        toast.error(data.message || 'Erro ao limpar mensagens');
+      }
+    } catch (error) {
+      toast.error('Erro ao limpar mensagens');
+      console.error('Erro ao limpar mensagens:', error);
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -173,16 +253,26 @@ export default function Shoutbox() {
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
       {/* Header */}
       <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center">
-          <FaComments className="h-6 w-6 text-blue-600 mr-3" />
-          <div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Fórum da Comunidade
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Converse com outros usuários e tire suas dúvidas
-            </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <FaComments className="h-6 w-6 text-blue-600 mr-3" />
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Fórum da Comunidade
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Converse com outros usuários e tire suas dúvidas
+              </p>
+            </div>
           </div>
+          <button
+            onClick={clearAllMessages}
+            disabled={userInfo.role !== 'admin' || clearing}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center space-x-2"
+          >
+            <FaTrash className="h-4 w-4" />
+            <span>{clearing ? 'Limpando...' : 'Limpar todas as mensagens'}</span>
+          </button>
         </div>
       </div>
 
@@ -231,9 +321,22 @@ export default function Shoutbox() {
                       </span>
                     </div>
                     <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700">
-                      <p className="text-sm text-gray-700 dark:text-gray-300 break-words leading-relaxed">
-                        {message.message}
-                      </p>
+                      {message.message && (
+                        <p className="text-sm text-gray-700 dark:text-gray-300 break-words leading-relaxed mb-2">
+                          {message.message}
+                        </p>
+                      )}
+                      {message.imageUrl && (
+                        <div className="mt-2">
+                          <img 
+                            src={message.imageUrl} 
+                            alt="Imagem compartilhada"
+                            className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                            style={{ maxHeight: '300px' }}
+                            onClick={() => window.open(message.imageUrl, '_blank')}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -271,6 +374,21 @@ export default function Shoutbox() {
               </div>
             </div>
             <div className="flex-1">
+              {imagePreview && (
+                <div className="mb-3 relative">
+                  <img 
+                    src={imagePreview} 
+                    alt="Preview"
+                    className="max-w-32 h-auto rounded-lg border border-gray-300 dark:border-gray-600"
+                  />
+                  <button
+                    onClick={removeImage}
+                    className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 text-xs"
+                  >
+                    <FaTimes className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
               <textarea
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
@@ -281,13 +399,30 @@ export default function Shoutbox() {
                 rows={3}
                 maxLength={500}
               />
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageSelect}
+                accept="image/*"
+                className="hidden"
+              />
               <div className="flex items-center justify-between mt-2">
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {newMessage.length}/500 caracteres
-                </span>
+                <div className="flex items-center space-x-4">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {newMessage.length}/500 caracteres
+                  </span>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={sending}
+                    className="flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-700 disabled:text-gray-400"
+                  >
+                    <FaImage className="h-3 w-3" />
+                    <span>Imagem</span>
+                  </button>
+                </div>
                 <button
                   onClick={sendMessage}
-                  disabled={!newMessage.trim() || sending}
+                  disabled={(!newMessage.trim() && !selectedImage) || sending}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center space-x-2"
                 >
                   <FaPaperPlane className="h-4 w-4" />

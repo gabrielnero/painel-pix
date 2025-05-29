@@ -1,33 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
-import { User, Withdrawal, WalletTransaction } from '@/lib/models';
+import { Withdrawal, User, WalletTransaction } from '@/lib/models';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { amount, pixKey, pixKeyType } = body;
-
     // Verificar autenticação
     const authResult = await verifyAuth(request);
-    if (!authResult.success) {
+    if (!authResult.success || !authResult.userId) {
       return NextResponse.json(
         { success: false, message: 'Não autorizado' },
         { status: 401 }
       );
     }
 
-    // Validar campos obrigatórios
-    if (!amount || !pixKey || !pixKeyType) {
+    const { amount, pixKey, pixKeyType } = await request.json();
+
+    // Validações
+    if (!amount || amount <= 0) {
       return NextResponse.json(
-        { success: false, message: 'Todos os campos são obrigatórios' },
+        { success: false, message: 'Valor inválido' },
         { status: 400 }
       );
     }
 
-    // Validar valor mínimo
     if (amount < 10) {
       return NextResponse.json(
         { success: false, message: 'Valor mínimo para saque é R$ 10,00' },
@@ -35,18 +33,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validar tipo de chave PIX
-    const validPixKeyTypes = ['cpf', 'cnpj', 'email', 'phone', 'random'];
-    if (!validPixKeyTypes.includes(pixKeyType)) {
+    if (!pixKey || !pixKeyType) {
       return NextResponse.json(
-        { success: false, message: 'Tipo de chave PIX inválido' },
+        { success: false, message: 'Chave PIX e tipo são obrigatórios' },
         { status: 400 }
       );
     }
 
     await connectToDatabase();
 
-    // Buscar usuário e verificar saldo
+    // Verificar saldo do usuário
     const user = await User.findById(authResult.userId);
     if (!user) {
       return NextResponse.json(
@@ -55,69 +51,86 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar se tem saldo suficiente
     if (user.balance < amount) {
       return NextResponse.json(
-        { 
-          success: false, 
-          message: `Saldo insuficiente. Saldo atual: R$ ${user.balance.toFixed(2)}` 
-        },
+        { success: false, message: 'Saldo insuficiente' },
         { status: 400 }
       );
     }
 
-    // Verificar se já existe saque pendente
-    const existingWithdrawal = await Withdrawal.findOne({
+    // Verificar se não há saques pendentes
+    const pendingWithdrawal = await Withdrawal.findOne({
       userId: authResult.userId,
       status: { $in: ['pending', 'approved', 'processing'] }
     });
 
-    if (existingWithdrawal) {
+    if (pendingWithdrawal) {
       return NextResponse.json(
-        { 
-          success: false, 
-          message: 'Você já possui um saque pendente. Aguarde a conclusão para solicitar outro.' 
-        },
-        { status: 409 }
+        { success: false, message: 'Você já possui um saque pendente' },
+        { status: 400 }
       );
     }
 
-    // Criar solicitação de saque
-    const withdrawal = await Withdrawal.create({
+    // Criar a solicitação de saque
+    const withdrawal = new Withdrawal({
       userId: authResult.userId,
       amount,
       pixKey,
       pixKeyType,
-      status: 'pending'
+      status: 'pending',
+      requestedAt: new Date(),
+      primepagAccount: 1 // Padrão para conta 1
     });
 
-    console.log(`💰 Nova solicitação de saque criada:`, {
+    await withdrawal.save();
+
+    // Deduzir o valor do saldo do usuário imediatamente
+    await User.findByIdAndUpdate(authResult.userId, {
+      $inc: { balance: -amount }
+    });
+
+    // Registrar transação na carteira
+    await WalletTransaction.create({
+      userId: authResult.userId,
+      type: 'withdrawal',
+      amount: -amount,
+      description: `Saque solicitado - Chave PIX: ${pixKey.substring(0, 5)}***`,
+      balanceBefore: user.balance,
+      balanceAfter: user.balance - amount,
+      metadata: {
+        withdrawalId: withdrawal._id,
+        pixKey: pixKey.substring(0, 5) + '***',
+        pixKeyType
+      }
+    });
+
+    console.log('Solicitação de saque criada:', {
       withdrawalId: withdrawal._id,
       userId: authResult.userId,
       amount,
-      pixKey: pixKey.substring(0, 5) + '***', // Mascarar chave PIX no log
-      pixKeyType
+      pixKey: pixKey.substring(0, 5) + '***'
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Solicitação de saque criada com sucesso. Aguarde aprovação do administrador.',
+      message: 'Solicitação de saque enviada com sucesso. Aguarde aprovação.',
       withdrawal: {
         id: withdrawal._id,
         amount,
-        pixKeyType,
         status: withdrawal.status,
-        requestedAt: withdrawal.requestedAt
+        requestedAt: withdrawal.requestedAt,
+        pixKey: pixKey.substring(0, 5) + '***',
+        pixKeyType
       }
     });
 
   } catch (error) {
-    console.error('❌ Erro ao solicitar saque:', error);
+    console.error('Erro ao processar solicitação de saque:', error);
     return NextResponse.json(
       {
         success: false,
-        message: 'Erro ao processar solicitação de saque',
-        error: error instanceof Error ? error.message : String(error)
+        message: 'Erro interno do servidor',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
       },
       { status: 500 }
     );

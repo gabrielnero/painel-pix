@@ -24,12 +24,16 @@ import Shoutbox from '@/components/Shoutbox';
 import ActiveUsersWidget from '@/components/ActiveUsersWidget';
 import MaintenanceMode from '@/components/MaintenanceMode';
 import { useMaintenanceMode } from '@/hooks/useMaintenanceMode';
+import { usePaymentExpiration } from '@/hooks/usePaymentExpiration';
 
 export default function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [userBalance, setUserBalance] = useState(0);
   const [userInfo, setUserInfo] = useState({ username: '', role: '' });
   const { isActive: isMaintenanceActive, message: maintenanceMessage, estimatedTime, loading: maintenanceLoading } = useMaintenanceMode();
+  
+  // Hook para verificar expiração de pagamentos
+  usePaymentExpiration();
 
   useEffect(() => {
     const timer = setInterval(() => {
