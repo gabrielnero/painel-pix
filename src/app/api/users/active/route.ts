@@ -43,52 +43,9 @@ export async function GET(request: NextRequest) {
     
   } catch (error) {
     console.error('Erro ao buscar usuários ativos:', error);
-    
-    // Retornar usuários mock em caso de erro
-    const mockUsers = [
-      {
-        _id: 'user1',
-        username: 'Admin',
-        role: 'admin',
-        isVip: true,
-        isOnline: true,
-        lastSeen: new Date(),
-        profilePicture: null
-      },
-      {
-        _id: 'user2',
-        username: 'Usuario1',
-        role: 'user',
-        isVip: false,
-        isOnline: true,
-        lastSeen: new Date(Date.now() - 120000), // 2 min atrás
-        profilePicture: null
-      },
-      {
-        _id: 'user3',
-        username: 'Moderador',
-        role: 'moderator',
-        isVip: false,
-        isOnline: false,
-        lastSeen: new Date(Date.now() - 600000), // 10 min atrás
-        profilePicture: null
-      },
-      {
-        _id: 'user4',
-        username: 'UsuarioVIP',
-        role: 'user',
-        isVip: true,
-        isOnline: false,
-        lastSeen: new Date(Date.now() - 1800000), // 30 min atrás
-        profilePicture: null
-      }
-    ];
-    
-    return NextResponse.json({
-      success: true,
-      users: mockUsers,
-      onlineCount: 2,
-      offline: true
-    });
+    return NextResponse.json(
+      { success: false, message: 'Erro interno do servidor' },
+      { status: 500 }
+    );
   }
 } 

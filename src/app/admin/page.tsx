@@ -120,6 +120,13 @@ export default function AdminDashboard() {
   const [withdrawalSummary, setWithdrawalSummary] = useState<any>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
+  // Estado para cancelar pagamentos pendentes
+  const [cancellingPayments, setCancellingPayments] = useState(false);
+
+  // Estado para expirar pagamentos automaticamente
+  const [expiringPayments, setExpiringPayments] = useState(false);
+  const [eligibleForExpiration, setEligibleForExpiration] = useState(0);
+
   useEffect(() => {
     // Inicializar no cliente para evitar problemas de hidratação
     setCurrentTime(new Date());
@@ -347,6 +354,104 @@ export default function AdminDashboard() {
     }
   }, []);
 
+  const cancelAllPendingPayments = async () => {
+    if (!confirm('⚠️ Tem certeza que deseja cancelar TODOS os pagamentos pendentes? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    setCancellingPayments(true);
+    try {
+      const response = await fetch('/api/admin/cancel-pending-payments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(`✅ ${data.cancelledCount} pagamentos pendentes cancelados com sucesso!`);
+        // Atualizar estatísticas
+        const fetchDashboardData = async () => {
+          try {
+            const response = await fetch('/api/admin/stats');
+            const data = await response.json();
+            if (data.success) {
+              setStats(data.stats);
+            }
+          } catch (error) {
+            console.error('Erro ao atualizar estatísticas:', error);
+          }
+        };
+        fetchDashboardData();
+      } else {
+        toast.error(data.message || 'Erro ao cancelar pagamentos');
+      }
+    } catch (error) {
+      console.error('Erro ao cancelar pagamentos:', error);
+      toast.error('Erro ao processar cancelamento');
+    } finally {
+      setCancellingPayments(false);
+    }
+  };
+
+  const expireOldPayments = async () => {
+    if (!confirm('⏰ Deseja expirar automaticamente todos os pagamentos pendentes há mais de 30 minutos?')) {
+      return;
+    }
+
+    setExpiringPayments(true);
+    try {
+      const response = await fetch('/api/admin/expire-payments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(`⏰ ${data.expiredCount} pagamentos expirados automaticamente!`);
+        // Atualizar estatísticas
+        const fetchDashboardData = async () => {
+          try {
+            const response = await fetch('/api/admin/stats');
+            const data = await response.json();
+            if (data.success) {
+              setStats(data.stats);
+            }
+          } catch (error) {
+            console.error('Erro ao atualizar estatísticas:', error);
+          }
+        };
+        fetchDashboardData();
+        // Atualizar contagem de elegíveis
+        checkEligiblePayments();
+      } else {
+        toast.error(data.message || 'Erro ao expirar pagamentos');
+      }
+    } catch (error) {
+      console.error('Erro ao expirar pagamentos:', error);
+      toast.error('Erro ao processar expiração');
+    } finally {
+      setExpiringPayments(false);
+    }
+  };
+
+  const checkEligiblePayments = async () => {
+    try {
+      const response = await fetch('/api/admin/expire-payments');
+      const data = await response.json();
+      if (data.success) {
+        setEligibleForExpiration(data.eligibleForExpiration || 0);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar pagamentos elegíveis:', error);
+    }
+  };
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -382,6 +487,7 @@ export default function AdminDashboard() {
     fetchDashboardData();
     fetchPrimepagBalance();
     fetchWithdrawalHistory();
+    checkEligiblePayments();
   }, [fetchPrimepagBalance, fetchWithdrawalHistory]);
 
   const getActivityIcon = (type: string) => {
@@ -419,6 +525,30 @@ export default function AdminDashboard() {
       return '0,00';
     }
   }, []);
+
+  // Função para formatar valor monetário durante a digitação
+  const formatMoneyInput = (value: string): string => {
+    // Remove tudo que não é número
+    const numbers = value.replace(/\D/g, '');
+    
+    // Se está vazio, retorna vazio
+    if (!numbers) return '';
+    
+    // Converte para número e divide por 100
+    const amount = parseInt(numbers) / 100;
+    
+    // Retorna formatado com vírgula
+    return amount.toFixed(2).replace('.', ',');
+  };
+
+  // Função para converter valor formatado para número
+  const parseMoneyInput = (value: string): number => {
+    const numbers = value.replace(/\D/g, '');
+    if (!numbers) return 0;
+    const amount = parseInt(numbers) / 100;
+    // Limite máximo de R$ 10.000
+    return Math.min(amount, 10000);
+  };
 
   const primepagBalanceSection = useMemo(() => {
     if (primepagAccounts.length === 0) {
@@ -844,14 +974,8 @@ export default function AdminDashboard() {
                     </label>
                     <input
                       type="text"
-                      value={testWithdrawal.amount > 0 ? testWithdrawal.amount.toFixed(2).replace('.', ',') : ''}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^\d,]/g, '').replace(',', '.');
-                        const numValue = parseFloat(value) || 0;
-                        if (numValue <= 10000) {
-                          setTestWithdrawal(prev => ({ ...prev, amount: numValue }));
-                        }
-                      }}
+                      value={formatMoneyInput(testWithdrawal.amount.toString())}
+                      onChange={(e) => setTestWithdrawal(prev => ({ ...prev, amount: parseMoneyInput(e.target.value) || 0 }))}
                       placeholder="Ex: 100,00"
                       className="w-full rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-3 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 dark:focus:ring-green-800 transition-all"
                     />
@@ -1014,6 +1138,152 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </Link>
+
+              {/* Cancelar Pagamentos Pendentes */}
+              <div className="bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 rounded-xl shadow-sm border-2 border-red-200 dark:border-red-700 p-6">
+                <div className="flex items-center mb-4">
+                  <div className="p-3 rounded-lg bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 transition-all duration-300 shadow-lg">
+                    <FaBan className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="ml-4 flex-1">
+                    <h3 className="text-xl font-bold text-red-700 dark:text-red-300 mb-1">
+                      🚫 Cancelar Pagamentos
+                    </h3>
+                    <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                      Cancelar todos os pagamentos pendentes
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+                  <div className="flex items-start">
+                    <FaExclamationTriangle className="text-red-500 mt-1 mr-3 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-red-800 dark:text-red-200 mb-1">⚠️ Ação Irreversível</p>
+                      <p className="text-sm text-red-600 dark:text-red-400">
+                        Esta ação cancelará todos os pagamentos que estão com status "pendente". 
+                        Use apenas em casos de emergência ou manutenção do sistema.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Pagamentos pendentes: </span>
+                    <span className="text-lg font-bold text-red-600 dark:text-red-400">
+                      {stats.pendingPayments}
+                    </span>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={cancelAllPendingPayments}
+                  disabled={cancellingPayments || stats.pendingPayments === 0}
+                  className={`w-full flex items-center justify-center px-6 py-4 rounded-lg text-white font-bold text-lg transition-all duration-300 transform ${
+                    cancellingPayments || stats.pendingPayments === 0
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 hover:scale-105 shadow-lg hover:shadow-xl'
+                  }`}
+                >
+                  {cancellingPayments ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-3"></div>
+                      Cancelando...
+                    </>
+                  ) : stats.pendingPayments === 0 ? (
+                    <>
+                      <FaCheckCircle className="mr-3 h-5 w-5" />
+                      Nenhum Pagamento Pendente
+                    </>
+                  ) : (
+                    <>
+                      <FaBan className="mr-3 h-5 w-5" />
+                      Cancelar {stats.pendingPayments} Pagamentos
+                    </>
+                  )}
+                </button>
+                
+                <div className="text-xs text-gray-500 dark:text-gray-400 text-center pt-2">
+                  💡 Esta ação afetará apenas pagamentos com status "pending"
+                </div>
+              </div>
+
+              {/* Expirar Pagamentos Antigos */}
+              <div className="bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-xl shadow-sm border-2 border-orange-200 dark:border-orange-700 p-6">
+                <div className="flex items-center mb-4">
+                  <div className="p-3 rounded-lg bg-gradient-to-r from-orange-600 to-yellow-600 hover:from-orange-700 hover:to-yellow-700 transition-all duration-300 shadow-lg">
+                    <FaClock className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="ml-4 flex-1">
+                    <h3 className="text-xl font-bold text-orange-700 dark:text-orange-300 mb-1">
+                      ⏰ Expirar Pagamentos
+                    </h3>
+                    <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">
+                      Expirar pagamentos pendentes há mais de 30 minutos
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4 mb-4">
+                  <div className="flex items-start">
+                    <FaClock className="text-orange-500 mt-1 mr-3 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-orange-800 dark:text-orange-200 mb-1">⏰ Expiração Automática</p>
+                      <p className="text-sm text-orange-600 dark:text-orange-400">
+                        Esta ação expirará automaticamente todos os pagamentos que estão pendentes há mais de 30 minutos. 
+                        Isso ajuda a manter o sistema limpo e libera slots para novos pagamentos.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Elegíveis para expiração: </span>
+                    <span className="text-lg font-bold text-orange-600 dark:text-orange-400">
+                      {eligibleForExpiration}
+                    </span>
+                  </div>
+                  <button
+                    onClick={checkEligiblePayments}
+                    className="text-sm text-orange-600 dark:text-orange-400 hover:text-orange-800 dark:hover:text-orange-300 font-medium"
+                  >
+                    🔄 Atualizar
+                  </button>
+                </div>
+                
+                <button
+                  onClick={expireOldPayments}
+                  disabled={expiringPayments || eligibleForExpiration === 0}
+                  className={`w-full flex items-center justify-center px-6 py-4 rounded-lg text-white font-bold text-lg transition-all duration-300 transform ${
+                    expiringPayments || eligibleForExpiration === 0
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-orange-600 to-yellow-600 hover:from-orange-700 hover:to-yellow-700 hover:scale-105 shadow-lg hover:shadow-xl'
+                  }`}
+                >
+                  {expiringPayments ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-3"></div>
+                      Expirando...
+                    </>
+                  ) : eligibleForExpiration === 0 ? (
+                    <>
+                      <FaCheckCircle className="mr-3 h-5 w-5" />
+                      Nenhum Pagamento para Expirar
+                    </>
+                  ) : (
+                    <>
+                      <FaClock className="mr-3 h-5 w-5" />
+                      Expirar {eligibleForExpiration} Pagamentos
+                    </>
+                  )}
+                </button>
+                
+                <div className="text-xs text-gray-500 dark:text-gray-400 text-center pt-2">
+                  ⏰ Expira automaticamente pagamentos pendentes há mais de 30 minutos
+                </div>
+              </div>
             </div>
           </div>
 

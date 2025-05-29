@@ -83,24 +83,12 @@ export default function WithdrawPage() {
 
     try {
       setSubmitting(true);
-      
-      // Remover formatação antes de enviar
-      const cleanPixKey = formData.pixKeyType === 'cpf' || formData.pixKeyType === 'phone' 
-        ? formData.pixKey.replace(/\D/g, '') 
-        : formData.pixKey;
-      
-      const cleanDocument = formData.receiverDocument.replace(/\D/g, '');
-      
       const response = await fetch('/api/withdrawal/request', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          pixKey: cleanPixKey,
-          receiverDocument: cleanDocument
-        }),
+        body: JSON.stringify(formData),
       });
 
       const data = await response.json();
@@ -125,6 +113,30 @@ export default function WithdrawPage() {
       style: 'currency',
       currency: 'BRL'
     }).format(value);
+  };
+
+  // Função para formatar valor monetário durante a digitação
+  const formatMoneyInput = (value: string): string => {
+    // Remove tudo que não é número
+    const numbers = value.replace(/\D/g, '');
+    
+    // Se está vazio, retorna vazio
+    if (!numbers) return '';
+    
+    // Converte para número e divide por 100
+    const amount = parseInt(numbers) / 100;
+    
+    // Retorna formatado com vírgula
+    return amount.toFixed(2).replace('.', ',');
+  };
+
+  // Função para converter valor formatado para número
+  const parseMoneyInput = (value: string): number => {
+    const numbers = value.replace(/\D/g, '');
+    if (!numbers) return 0;
+    const amount = parseInt(numbers) / 100;
+    // Limite máximo de R$ 10.000
+    return Math.min(amount, 10000);
   };
 
   if (loading) {
@@ -162,16 +174,10 @@ export default function WithdrawPage() {
               <div className="relative">
                 <input
                   type="text"
-                  value={formData.amount > 0 ? formData.amount.toFixed(2).replace('.', ',') : ''}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/[^\d,]/g, '').replace(',', '.');
-                    const numValue = parseFloat(value) || 0;
-                    if (numValue <= 10000) {
-                      setFormData({ ...formData, amount: numValue });
-                    }
-                  }}
+                  value={formatMoneyInput(formData.amount.toString())}
+                  onChange={(e) => setFormData({ ...formData, amount: parseMoneyInput(e.target.value) })}
                   className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-2"
-                  placeholder="0,00"
+                  placeholder="Ex: 100,00"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   💰 Limite máximo: R$ 10.000,00 por transação
@@ -202,35 +208,9 @@ export default function WithdrawPage() {
               <input
                 type="text"
                 value={formData.pixKey}
-                onChange={(e) => {
-                  let value = e.target.value;
-                  
-                  // Formatação visual baseada no tipo
-                  if (formData.pixKeyType === 'cpf') {
-                    // Remove tudo que não é número
-                    const numbers = value.replace(/\D/g, '').slice(0, 11);
-                    // Aplica máscara visual: 000.000.000-00
-                    value = numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-                  } else if (formData.pixKeyType === 'phone') {
-                    // Remove tudo que não é número
-                    const numbers = value.replace(/\D/g, '').slice(0, 11);
-                    // Aplica máscara visual: (00) 00000-0000
-                    if (numbers.length <= 10) {
-                      value = numbers.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
-                    } else {
-                      value = numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
-                    }
-                  }
-                  
-                  setFormData({ ...formData, pixKey: value });
-                }}
+                onChange={(e) => setFormData({ ...formData, pixKey: e.target.value })}
                 className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-2"
-                placeholder={
-                  formData.pixKeyType === 'cpf' ? '000.000.000-00' :
-                  formData.pixKeyType === 'phone' ? '(00) 00000-0000' :
-                  formData.pixKeyType === 'email' ? 'email@exemplo.com' :
-                  'Chave aleatória'
-                }
+                placeholder="Digite sua chave PIX"
               />
             </div>
 
@@ -242,9 +222,9 @@ export default function WithdrawPage() {
                 <input
                   type="text"
                   value={formData.receiverName}
-                  onChange={(e) => setFormData({ ...formData, receiverName: e.target.value.toUpperCase() })}
+                  onChange={(e) => setFormData({ ...formData, receiverName: e.target.value })}
                   className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-2"
-                  placeholder="NOME CONFORME CADASTRADO NA CHAVE PIX"
+                  placeholder="Nome conforme cadastrado na chave PIX"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   ⚠️ Deve ser exatamente igual ao nome do dono da chave PIX
@@ -258,16 +238,10 @@ export default function WithdrawPage() {
                 <input
                   type="text"
                   value={formData.receiverDocument}
-                  onChange={(e) => {
-                    // Remove tudo que não é número
-                    const numbers = e.target.value.replace(/\D/g, '').slice(0, 11);
-                    // Aplica máscara visual: 000.000.000-00
-                    const formatted = numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-                    setFormData({ ...formData, receiverDocument: formatted });
-                  }}
+                  onChange={(e) => setFormData({ ...formData, receiverDocument: e.target.value.replace(/\D/g, '').slice(0, 11) })}
                   className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-2"
-                  placeholder="000.000.000-00"
-                  maxLength={14}
+                  placeholder="CPF sem pontuação"
+                  maxLength={11}
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   ⚠️ Deve ser o CPF real do dono da chave PIX

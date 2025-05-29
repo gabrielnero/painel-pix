@@ -29,40 +29,10 @@ export async function GET(request: NextRequest) {
     
   } catch (error) {
     console.error('Erro ao buscar mensagens da shoutbox:', error);
-    
-    // Retornar mensagens mock em caso de erro
-    const mockMessages = [
-      {
-        _id: 'msg1',
-        userId: 'user1',
-        username: 'Admin',
-        message: '🎉 Bem-vindos ao sistema! O fórum está funcionando perfeitamente.',
-        role: 'admin',
-        createdAt: new Date(Date.now() - 300000), // 5 min atrás
-      },
-      {
-        _id: 'msg2',
-        userId: 'user2',
-        username: 'Usuario1',
-        message: 'Olá pessoal! Como estão? O sistema está muito bom!',
-        role: 'user',
-        createdAt: new Date(Date.now() - 600000), // 10 min atrás
-      },
-      {
-        _id: 'msg3',
-        userId: 'user3',
-        username: 'Moderador',
-        message: 'Lembrem-se de seguir as regras do fórum. Qualquer dúvida, me chamem!',
-        role: 'moderator',
-        createdAt: new Date(Date.now() - 900000), // 15 min atrás
-      }
-    ];
-    
-    return NextResponse.json({
-      success: true,
-      messages: mockMessages,
-      offline: true
-    });
+    return NextResponse.json(
+      { success: false, message: 'Erro interno do servidor' },
+      { status: 500 }
+    );
   }
 }
 

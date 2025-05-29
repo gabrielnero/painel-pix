@@ -53,30 +53,26 @@ export default function DynamicHeader() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between">
           <Link href="/dashboard" className="inline-block group">
-            <h1 className="text-2xl font-bold font-mono cursor-pointer flex items-center">
-              <span className="text-red-600 dark:text-red-500 group-hover:text-red-700 dark:group-hover:text-red-400 transition-colors">
-                t
+            <h1 className="text-2xl font-bold font-mono flex items-center">
+              <span className="text-red-600 dark:text-red-500 transition-colors duration-300">
+                <span className="group-hover:text-red-400">t</span>
+                <span className="group-hover:text-red-800">0</span>
+                <span className="group-hover:text-red-400">p</span>
+                <span className="group-hover:text-red-800">.</span>
+                <span className="group-hover:text-red-400">1</span>
               </span>
-              <span className="text-red-500 dark:text-red-600 group-hover:text-red-600 dark:group-hover:text-red-500 transition-colors">
-                0
-              </span>
-              <span className="text-red-600 dark:text-red-500 group-hover:text-red-700 dark:group-hover:text-red-400 transition-colors">
-                p
-              </span>
-              <span className="text-red-500 dark:text-red-600 group-hover:text-red-600 dark:group-hover:text-red-500 transition-colors">
-                .
-              </span>
-              <span className="text-red-600 dark:text-red-500 group-hover:text-red-700 dark:group-hover:text-red-400 transition-colors">
-                1
-              </span>
-              <span className="mx-2 text-red-700 dark:text-red-400 group-hover:text-red-800 dark:group-hover:text-red-300 transition-colors">
+              <span className="mx-2 text-red-600 dark:text-red-500 group-hover:text-red-700 dark:group-hover:text-red-300 transition-colors duration-300 text-3xl font-bold">
                 X
               </span>
-              <span className="text-red-500 dark:text-red-600 group-hover:text-red-600 dark:group-hover:text-red-500 transition-colors">
-                Receiver
-              </span>
-              <span className="text-red-600 dark:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
-                .sh
+              <span className="text-red-600 dark:text-red-500 transition-colors duration-300">
+                <span className="group-hover:text-red-400">R</span>
+                <span className="group-hover:text-red-800">e</span>
+                <span className="group-hover:text-red-400">c</span>
+                <span className="group-hover:text-red-800">e</span>
+                <span className="group-hover:text-red-400">i</span>
+                <span className="group-hover:text-red-800">v</span>
+                <span className="group-hover:text-red-400">e</span>
+                <span className="group-hover:text-red-800">r</span>
               </span>
             </h1>
           </Link>

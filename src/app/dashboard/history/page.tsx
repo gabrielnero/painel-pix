@@ -176,7 +176,7 @@ export default function HistoryPage() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="text-left border-b border-gray-200 dark:border-gray-700">
+                <tr className="text-left border-b dark:border-gray-700">
                   <th className="pb-3 px-4 text-gray-900 dark:text-white font-semibold">Data</th>
                   <th className="pb-3 px-4 text-gray-900 dark:text-white font-semibold">Tipo</th>
                   <th className="pb-3 px-4 text-gray-900 dark:text-white font-semibold">Descrição</th>
@@ -189,14 +189,14 @@ export default function HistoryPage() {
                 {transactions.map((transaction) => (
                   <tr
                     key={transaction._id}
-                    className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
-                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300">
+                    <td className="py-3 px-4 text-gray-900 dark:text-gray-300">
                       {formatDate(transaction.createdAt)}
                     </td>
                     <td className="py-3 px-4">
                       <span
-                        className={`inline-block px-2 py-1 rounded text-sm font-medium ${
+                        className={`inline-block px-2 py-1 rounded text-sm ${
                           transaction.type === 'deposit'
                             ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                             : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
@@ -205,13 +205,13 @@ export default function HistoryPage() {
                         {transaction.type === 'deposit' ? 'Depósito' : 'Saque'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{transaction.description}</td>
-                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300">
-                      {transaction.paymentMethod || 'PIX'}
+                    <td className="py-3 px-4 text-gray-900 dark:text-gray-300">{transaction.description}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-gray-300">
+                      {transaction.paymentMethod || '-'}
                     </td>
                     <td className="py-3 px-4">
                       <span
-                        className={`inline-block px-2 py-1 rounded text-sm font-medium ${
+                        className={`inline-block px-2 py-1 rounded text-sm ${
                           transaction.status === 'completed'
                             ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                             : transaction.status === 'pending'
@@ -226,7 +226,7 @@ export default function HistoryPage() {
                           : 'Falhou'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right text-gray-900 dark:text-white font-semibold">
+                    <td className="py-3 px-4 text-right">
                       <span
                         className={
                           transaction.type === 'deposit'

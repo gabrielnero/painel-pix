@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
       const totalAmount = payments.reduce((sum, p) => sum + p.amount, 0);
 
       // Calcular crescimento mensal (mock por enquanto)
-      const monthlyGrowth = 12.5;
-      const weeklyGrowth = -5.2;
+      const monthlyGrowth = 0;
+      const weeklyGrowth = 0;
 
       const stats = {
         totalPayments,
@@ -48,41 +48,22 @@ export async function GET(request: NextRequest) {
 
     } catch (dbError) {
       console.error('Erro de conexão com o banco de dados:', dbError);
-      
-      // Retornar estatísticas mock em caso de erro
-      const mockStats = {
-        totalPayments: 25,
-        totalAmount: 3750.00,
-        pendingPayments: 3,
-        paidPayments: 22,
-        monthlyGrowth: 12.5,
-        weeklyGrowth: -5.2
-      };
-      
       return NextResponse.json({
-        success: true,
-        stats: mockStats,
-        offline: true
-      });
+        success: false,
+        message: 'Erro de conexão com o banco de dados',
+        error: dbError instanceof Error ? dbError.message : String(dbError)
+      }, { status: 500 });
     }
 
   } catch (error) {
     console.error('Erro ao buscar estatísticas:', error);
-    
-    // Fallback final com estatísticas padrão
-    const fallbackStats = {
-      totalPayments: 25,
-      totalAmount: 3750.00,
-      pendingPayments: 3,
-      paidPayments: 22,
-      monthlyGrowth: 12.5,
-      weeklyGrowth: -5.2
-    };
-    
-    return NextResponse.json({
-      success: true,
-      stats: fallbackStats,
-      error: 'Fallback mode'
-    });
+    return NextResponse.json(
+      { 
+        success: false, 
+        message: 'Erro interno do servidor',
+        error: error instanceof Error ? error.message : String(error)
+      },
+      { status: 500 }
+    );
   }
 } 

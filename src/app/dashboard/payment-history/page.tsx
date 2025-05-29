@@ -65,7 +65,6 @@ export default function PaymentHistoryPage() {
   const [endDate, setEndDate] = useState('');
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [cancelingPayment, setCancelingPayment] = useState<string | null>(null);
-  const [cancelingAll, setCancelingAll] = useState(false);
 
   const fetchHistory = async (page: number = 1) => {
     try {
@@ -191,44 +190,6 @@ export default function PaymentHistoryPage() {
     }
   };
 
-  const cancelAllPendingPayments = async () => {
-    if (!history?.payments.some(p => p.status === 'pending')) {
-      toast.error('Nenhum pagamento pendente encontrado');
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Tem certeza que deseja cancelar TODOS os pagamentos pendentes?\n\nEsta ação não pode ser desfeita.`
-    );
-
-    if (!confirmed) return;
-
-    setCancelingAll(true);
-    try {
-      const response = await fetch('/api/pix/cancel-all-pending', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success(`${data.canceledCount} pagamento(s) cancelado(s) com sucesso!`);
-        // Recarregar histórico
-        fetchHistory(currentPage);
-      } else {
-        toast.error(data.message || 'Erro ao cancelar pagamentos');
-      }
-    } catch (error) {
-      console.error('Erro ao cancelar todos os pagamentos:', error);
-      toast.error('Erro ao cancelar pagamentos');
-    } finally {
-      setCancelingAll(false);
-    }
-  };
-
   if (loading && !history) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -342,32 +303,6 @@ export default function PaymentHistoryPage() {
           </div>
         </div>
       </div>
-
-      {/* Botão Cancelar Todos Pendentes */}
-      {history && history.stats.pending > 0 && (
-        <div className="mb-6">
-          <button
-            onClick={cancelAllPendingPayments}
-            disabled={cancelingAll}
-            className="flex items-center px-6 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded-lg transition-colors duration-300 font-semibold shadow-lg"
-          >
-            {cancelingAll ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-3"></div>
-                Cancelando...
-              </>
-            ) : (
-              <>
-                <FaBan className="mr-3 h-5 w-5" />
-                Cancelar Todos os Pagamentos Pendentes ({history.stats.pending})
-              </>
-            )}
-          </button>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-            ⚠️ Esta ação cancelará TODOS os {history.stats.pending} pagamentos pendentes e não pode ser desfeita.
-          </p>
-        </div>
-      )}
 
       {/* Lista de Pagamentos */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
