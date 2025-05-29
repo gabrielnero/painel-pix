@@ -759,14 +759,18 @@ function GeneratePixContent() {
                     </div>
 
                     {/* Informações */}
-                    <div className="mt-6 space-y-3">
+                    <div className="mt-6 space-y-2">
                       <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                         <FaCheckCircle className="text-green-500 mr-2" />
                         Pagamento será confirmado automaticamente
                       </div>
                       <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                         <FaClock className="text-yellow-500 mr-2" />
-                        Este código PIX expira em 1 hora
+                        Este código PIX expira em 30 minutos
+                      </div>
+                      <div className="flex items-center text-sm text-red-600 dark:text-red-400">
+                        <FaTimesCircle className="text-red-500 mr-2" />
+                        ⚠️ Pagamentos após 30 minutos serão perdidos
                       </div>
                       {statusCheckInterval && pixData.status === 'pending' && (
                         <div className="flex items-center text-sm text-blue-600 dark:text-blue-400">

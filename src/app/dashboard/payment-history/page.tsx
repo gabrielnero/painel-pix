@@ -65,6 +65,7 @@ export default function PaymentHistoryPage() {
   const [endDate, setEndDate] = useState('');
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [cancelingPayment, setCancelingPayment] = useState<string | null>(null);
+  const [cancelingAll, setCancelingAll] = useState(false);
 
   const fetchHistory = async (page: number = 1) => {
     try {
@@ -190,6 +191,42 @@ export default function PaymentHistoryPage() {
     }
   };
 
+  const cancelAllPendingPayments = async () => {
+    if (!history || history.stats.pending === 0) {
+      toast.error('Nenhum pagamento pendente encontrado');
+      return;
+    }
+
+    if (!confirm(`Tem certeza que deseja cancelar TODOS os ${history.stats.pending} pagamentos pendentes? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    setCancelingAll(true);
+    try {
+      const response = await fetch('/api/pix/cancel-all-pending', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(`${data.canceledCount} pagamentos cancelados com sucesso!`);
+        // Recarregar histórico
+        fetchHistory(currentPage);
+      } else {
+        toast.error(data.message || 'Erro ao cancelar pagamentos');
+      }
+    } catch (error) {
+      console.error('Erro ao cancelar todos os pagamentos:', error);
+      toast.error('Erro ao cancelar todos os pagamentos');
+    } finally {
+      setCancelingAll(false);
+    }
+  };
+
   if (loading && !history) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -252,13 +289,13 @@ export default function PaymentHistoryPage() {
 
       {/* Filtros */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6">
-        <h2 className="text-lg font-semibold mb-4 flex items-center">
+        <h2 className="text-lg font-semibold mb-4 flex items-center text-gray-900 dark:text-white">
           <FaFilter className="mr-2" />
           Filtros
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Status</label>
+            <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Status</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -272,7 +309,7 @@ export default function PaymentHistoryPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Data Inicial</label>
+            <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Data Inicial</label>
             <input
               type="date"
               value={startDate}
@@ -281,7 +318,7 @@ export default function PaymentHistoryPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Data Final</label>
+            <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Data Final</label>
             <input
               type="date"
               value={endDate}
@@ -299,6 +336,26 @@ export default function PaymentHistoryPage() {
               className="w-full px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
             >
               Limpar Filtros
+            </button>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={cancelAllPendingPayments}
+              disabled={cancelingAll || !history || history.stats.pending === 0}
+              className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+              title={history?.stats.pending === 0 ? 'Nenhum pagamento pendente' : `Cancelar ${history?.stats.pending} pagamentos pendentes`}
+            >
+              {cancelingAll ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Cancelando...
+                </>
+              ) : (
+                <>
+                  <FaBan className="mr-2" />
+                  Cancelar Todos Pendentes
+                </>
+              )}
             </button>
           </div>
         </div>

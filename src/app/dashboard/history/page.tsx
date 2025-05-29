@@ -177,12 +177,12 @@ export default function HistoryPage() {
             <table className="w-full">
               <thead>
                 <tr className="text-left border-b dark:border-gray-700">
-                  <th className="pb-3 px-4 text-gray-900 dark:text-white font-semibold">Data</th>
-                  <th className="pb-3 px-4 text-gray-900 dark:text-white font-semibold">Tipo</th>
-                  <th className="pb-3 px-4 text-gray-900 dark:text-white font-semibold">Descrição</th>
-                  <th className="pb-3 px-4 text-gray-900 dark:text-white font-semibold">Método</th>
-                  <th className="pb-3 px-4 text-gray-900 dark:text-white font-semibold">Status</th>
-                  <th className="pb-3 px-4 text-right text-gray-900 dark:text-white font-semibold">Valor</th>
+                  <th className="pb-3 px-4 text-gray-900 dark:text-white">Data</th>
+                  <th className="pb-3 px-4 text-gray-900 dark:text-white">Tipo</th>
+                  <th className="pb-3 px-4 text-gray-900 dark:text-white">Descrição</th>
+                  <th className="pb-3 px-4 text-gray-900 dark:text-white">Método</th>
+                  <th className="pb-3 px-4 text-gray-900 dark:text-white">Status</th>
+                  <th className="pb-3 px-4 text-right text-gray-900 dark:text-white">Valor</th>
                 </tr>
               </thead>
               <tbody>
@@ -191,7 +191,7 @@ export default function HistoryPage() {
                     key={transaction._id}
                     className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
-                    <td className="py-3 px-4 text-gray-900 dark:text-gray-300">
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">
                       {formatDate(transaction.createdAt)}
                     </td>
                     <td className="py-3 px-4">
@@ -205,8 +205,8 @@ export default function HistoryPage() {
                         {transaction.type === 'deposit' ? 'Depósito' : 'Saque'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-gray-900 dark:text-gray-300">{transaction.description}</td>
-                    <td className="py-3 px-4 text-gray-900 dark:text-gray-300">
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{transaction.description}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">
                       {transaction.paymentMethod || '-'}
                     </td>
                     <td className="py-3 px-4">

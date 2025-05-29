@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 
 interface WithdrawalFormData {
   amount: number;
+  amountFormatted: string;
   pixKey: string;
   pixKeyType: string;
   receiverName: string;
@@ -18,6 +19,7 @@ export default function WithdrawPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState<WithdrawalFormData>({
     amount: 0,
+    amountFormatted: '',
     pixKey: '',
     pixKeyType: 'cpf',
     receiverName: '',
@@ -44,6 +46,27 @@ export default function WithdrawPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Função para formatação automática do valor
+  const formatCurrency = (value: string): string => {
+    const numbers = value.replace(/\D/g, '');
+    const cents = parseInt(numbers) || 0;
+    const reais = cents / 100;
+    return reais.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCurrency(e.target.value);
+    const numericValue = parseFloat(formatted.replace(/\./g, '').replace(',', '.')) || 0;
+    setFormData(prev => ({ 
+      ...prev, 
+      amountFormatted: formatted,
+      amount: numericValue
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,7 +119,7 @@ export default function WithdrawPage() {
       if (data.success) {
         toast.success('Solicitação de saque enviada com sucesso!');
         fetchBalance(); // Atualiza o saldo
-        setFormData({ amount: 0, pixKey: '', pixKeyType: 'cpf', receiverName: '', receiverDocument: '' }); // Limpa o formulário
+        setFormData({ amount: 0, amountFormatted: '', pixKey: '', pixKeyType: 'cpf', receiverName: '', receiverDocument: '' }); // Limpa o formulário
       } else {
         toast.error(data.message || 'Erro ao solicitar saque');
       }
@@ -106,37 +129,6 @@ export default function WithdrawPage() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
-
-  // Função para formatar valor monetário durante a digitação
-  const formatMoneyInput = (value: string): string => {
-    // Remove tudo que não é número
-    const numbers = value.replace(/\D/g, '');
-    
-    // Se está vazio, retorna vazio
-    if (!numbers) return '';
-    
-    // Converte para número e divide por 100
-    const amount = parseInt(numbers) / 100;
-    
-    // Retorna formatado com vírgula
-    return amount.toFixed(2).replace('.', ',');
-  };
-
-  // Função para converter valor formatado para número
-  const parseMoneyInput = (value: string): number => {
-    const numbers = value.replace(/\D/g, '');
-    if (!numbers) return 0;
-    const amount = parseInt(numbers) / 100;
-    // Limite máximo de R$ 10.000
-    return Math.min(amount, 10000);
   };
 
   if (loading) {
@@ -161,7 +153,7 @@ export default function WithdrawPage() {
             <div className="text-right">
               <p className="text-sm text-gray-600 dark:text-gray-400">Saldo Disponível</p>
               <p className="text-2xl font-bold text-green-500">
-                {formatCurrency(balance)}
+                R$ {balance.toFixed(2).replace('.', ',')}
               </p>
             </div>
           </div>
@@ -174,14 +166,11 @@ export default function WithdrawPage() {
               <div className="relative">
                 <input
                   type="text"
-                  value={formatMoneyInput(formData.amount.toString())}
-                  onChange={(e) => setFormData({ ...formData, amount: parseMoneyInput(e.target.value) })}
+                  value={formData.amountFormatted}
+                  onChange={handleAmountChange}
                   className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-2"
-                  placeholder="Ex: 100,00"
+                  placeholder="0,00"
                 />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  💰 Limite máximo: R$ 10.000,00 por transação
-                </p>
               </div>
             </div>
 

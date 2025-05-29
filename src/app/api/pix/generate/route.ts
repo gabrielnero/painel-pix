@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
     try {
       await connectToDatabase();
 
-      // Data de expiração
+      // Data de expiração - 30 minutos (1800 segundos)
       const expirationDate = new Date(Date.now() + ((expiresIn || 1800) * 1000));
 
       // Salvar pagamento no banco

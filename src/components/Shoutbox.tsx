@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { FaPaperPlane, FaComments, FaUser } from 'react-icons/fa';
+import { FaPaperPlane, FaComments, FaUser, FaTrash } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 
 interface Message {
@@ -21,6 +21,7 @@ export default function Shoutbox() {
   const [userInfo, setUserInfo] = useState({ username: '', role: 'user', profilePicture: '' });
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [clearingChat, setClearingChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -118,6 +119,39 @@ export default function Shoutbox() {
     }
   };
 
+  const clearChat = async () => {
+    if (!userInfo.username || userInfo.role !== 'admin' || clearingChat) return;
+
+    if (!confirm('Tem certeza que deseja limpar todas as mensagens do chat? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    setClearingChat(true);
+
+    try {
+      const response = await fetch('/api/shoutbox/clear', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setMessages([]);
+        toast.success('Chat limpo com sucesso!');
+      } else {
+        toast.error(data.message || 'Erro ao limpar chat');
+      }
+    } catch (error) {
+      toast.error('Erro ao limpar chat');
+      console.error('Erro ao limpar chat:', error);
+    } finally {
+      setClearingChat(false);
+    }
+  };
+
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'admin':
@@ -173,16 +207,38 @@ export default function Shoutbox() {
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
       {/* Header */}
       <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center">
-          <FaComments className="h-6 w-6 text-blue-600 mr-3" />
-          <div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Fórum da Comunidade
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Converse com outros usuários e tire suas dúvidas
-            </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <FaComments className="h-6 w-6 text-blue-600 mr-3" />
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Fórum da Comunidade
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Converse com outros usuários e tire suas dúvidas
+              </p>
+            </div>
           </div>
+          {userInfo.role === 'admin' && (
+            <button
+              onClick={clearChat}
+              disabled={clearingChat}
+              className="px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors flex items-center"
+              title="Limpar todas as mensagens do chat"
+            >
+              {clearingChat ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Limpando...
+                </>
+              ) : (
+                <>
+                  <FaTrash className="mr-2" />
+                  Limpar Chat
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
