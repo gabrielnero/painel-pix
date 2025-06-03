@@ -3,106 +3,42 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
-  FaCreditCard, 
-  FaHistory, 
-  FaUser, 
-  FaSignOutAlt, 
-  FaChartLine,
+  FaHome,
   FaMoneyBillWave,
+  FaHistory,
+  FaUser,
+  FaPlus,
+  FaExclamationTriangle,
+  FaChartLine,
   FaClock,
   FaCheckCircle,
-  FaArrowUp,
-  FaArrowDown,
-  FaPlus,
-  FaEye,
-  FaDownload
+  FaTelegram,
+  FaLock,
+  FaTerminal,
+  FaShieldAlt,
+  FaImages
 } from 'react-icons/fa';
-import NotificationCenter from '@/components/NotificationCenter';
-import ThemeToggle from '@/components/ThemeToggle';
-import AnnouncementBanner from '@/components/AnnouncementBanner';
 import Shoutbox from '@/components/Shoutbox';
 import ActiveUsersWidget from '@/components/ActiveUsersWidget';
-import MaintenanceMode from '@/components/MaintenanceMode';
-import { useMaintenanceMode } from '@/hooks/useMaintenanceMode';
+
+interface Photo {
+  id: string;
+  price: number;
+  preview: string;
+  isPurchased: boolean;
+  filename: string;
+  originalName: string;
+}
 
 export default function Dashboard() {
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [userBalance, setUserBalance] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [userInfo, setUserInfo] = useState({ username: '', role: '' });
-  const { isActive: isMaintenanceActive, message: maintenanceMessage, estimatedTime, loading: maintenanceLoading } = useMaintenanceMode();
+  const [userBalance, setUserBalance] = useState(0);
+  const [previewPhotos, setPreviewPhotos] = useState<Photo[]>([]);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  // Buscar dados do usuário
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        // Buscar saldo
-        const balanceResponse = await fetch('/api/user/balance');
-        const balanceData = await balanceResponse.json();
-        if (balanceData.success) {
-          setUserBalance(balanceData.balance);
-        }
-
-        // Buscar informações do usuário
-        const userResponse = await fetch('/api/auth/check');
-        const userData = await userResponse.json();
-        if (userData.success && userData.user) {
-          setUserInfo({
-            username: userData.user.username,
-            role: userData.user.role
-          });
-          
-          // Atualizar elementos do DOM
-          const usernameElement = document.getElementById('dashboard-username');
-          const roleElement = document.getElementById('dashboard-role');
-          
-          if (usernameElement) {
-            usernameElement.textContent = userData.user.username;
-          }
-          
-          if (roleElement) {
-            const roleText = userData.user.role === 'admin' ? 'Administrador' : 
-                           userData.user.role === 'moderator' ? 'Moderador' : 'Usuário';
-            roleElement.textContent = roleText;
-          }
-        }
-
-        // Buscar estatísticas
-        const statsResponse = await fetch('/api/user/stats');
-        const statsData = await statsResponse.json();
-        if (statsData.success) {
-          setStats(statsData.stats);
-        }
-      } catch (error) {
-        console.error('Erro ao buscar dados do usuário:', error);
-      }
-    };
-
-    fetchUserData();
-    
-    // Atualizar saldo a cada 10 segundos
-    const balanceInterval = setInterval(() => {
-      fetch('/api/user/balance')
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            setUserBalance(data.balance);
-          }
-        })
-        .catch(console.error);
-    }, 10000);
-    
-    return () => clearInterval(balanceInterval);
-  }, []);
-
-  // Dados de estatísticas (carregados da API)
+  // Dados de estatísticas
   const [stats, setStats] = useState({
     totalPayments: 0,
     totalAmount: 0,
@@ -112,314 +48,406 @@ export default function Dashboard() {
     weeklyGrowth: 0
   });
 
-  // Dados de pagamentos recentes (carregados da API)
-  const [recentPayments, setRecentPayments] = useState<Array<{
-    id: string;
-    customer: string;
-    amount: number;
-    status: string;
-    time: string;
-  }>>([]);
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        setHasError(false);
+        
+        // Verificar autenticação
+        const userResponse = await fetch('/api/auth/check');
+        
+        if (!userResponse.ok) {
+          throw new Error(`HTTP ${userResponse.status}: ${userResponse.statusText}`);
+        }
+        
+        const userData = await userResponse.json();
+        
+        if (!userData.success) {
+          setErrorMessage(`Erro de autenticação: ${userData.message || 'Dados inválidos'}`);
+          setHasError(true);
+          return;
+        }
 
-  const quickActions = [
-    {
-      title: 'Gerar PIX',
-      description: 'Criar novo pagamento PIX',
-      icon: FaPlus,
-      href: '/dashboard/pix',
-      color: 'bg-blue-500 hover:bg-blue-600',
-      iconColor: 'text-white'
-    },
-    {
-      title: 'Minha Carteira',
-      description: 'Ver saldo e transações',
-      icon: FaMoneyBillWave,
-      href: '/dashboard/wallet',
-      color: 'bg-green-500 hover:bg-green-600',
-      iconColor: 'text-white'
-    },
-    {
-      title: 'Ver Histórico',
-      description: 'Consultar pagamentos anteriores',
-      icon: FaHistory,
-      href: '/dashboard/payment-history',
-      color: 'bg-orange-500 hover:bg-orange-600',
-      iconColor: 'text-white'
-    },
-    {
-      title: 'Meu Perfil',
-      description: 'Gerenciar conta e configurações',
-      icon: FaUser,
-      href: '/dashboard/profile',
-      color: 'bg-purple-500 hover:bg-purple-600',
-      iconColor: 'text-white'
-    }
-  ];
+        setUserInfo({
+          username: userData.user?.username || 'Usuário',
+          role: userData.user?.role || 'user'
+        });
 
-  // Verificar se o sistema está em manutenção
-  if (!maintenanceLoading && isMaintenanceActive) {
+        // Buscar saldo
+        try {
+          const balanceResponse = await fetch('/api/user/balance');
+          const balanceData = await balanceResponse.json();
+          
+          if (balanceData.success) {
+            setUserBalance(balanceData.balance);
+          }
+        } catch (balanceError) {
+          console.error('Erro ao carregar saldo:', balanceError);
+        }
+
+        // Buscar estatísticas
+        try {
+          const statsResponse = await fetch('/api/user/stats');
+          const statsData = await statsResponse.json();
+          
+          if (statsData.success) {
+            setStats(statsData.stats);
+          } else {
+            setStats({
+              totalPayments: 0,
+              totalAmount: 0,
+              pendingPayments: 0,
+              paidPayments: 0,
+              monthlyGrowth: 0,
+              weeklyGrowth: 0
+            });
+          }
+        } catch (statsError) {
+          console.error('Erro ao carregar estatísticas:', statsError);
+        }
+
+        // Buscar preview das fotos
+        try {
+          const photosResponse = await fetch('/api/photos?limit=4');
+          const photosData = await photosResponse.json();
+          
+          if (photosData.success) {
+            const mappedPhotos = photosData.photos.slice(0, 4).map((photo: any) => ({
+              id: photo.id,
+              price: photo.price,
+              preview: `/api/photos/${photo.id}/preview`,
+              isPurchased: photo.isPurchased,
+              filename: photo.filename,
+              originalName: photo.originalName
+            }));
+            setPreviewPhotos(mappedPhotos);
+          }
+        } catch (photosError) {
+          console.error('Erro ao carregar preview das fotos:', photosError);
+        }
+        
+      } catch (error) {
+        console.error('Erro ao buscar dados:', error);
+        setErrorMessage(`Erro de conexão: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+        setHasError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  // Tela de carregamento
+  if (loading) {
     return (
-      <MaintenanceMode 
-        message={maintenanceMessage}
-        estimatedTime={estimatedTime}
-      />
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-gray-900/90 backdrop-blur border border-green-500/30 rounded-lg p-6">
+            <FaTerminal className="text-4xl text-green-400 mx-auto mb-4 animate-pulse" />
+            <div className="bg-black/50 p-3 rounded border border-green-500/20 mb-4">
+              <pre className="text-green-400 text-sm">
+                root@t0p1:~$ ./dashboard.sh{'\n'}
+                [<span className="animate-pulse">▓</span>] Carregando módulos...
+              </pre>
+            </div>
+            <p className="text-green-400 text-xs uppercase tracking-wide">
+              INICIALIZANDO SISTEMA
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Tela de erro
+  if (hasError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-black flex items-center justify-center">
+        <div className="text-center bg-gray-900/90 backdrop-blur border border-red-500/30 rounded-lg p-8 shadow-2xl max-w-md">
+          <FaExclamationTriangle className="h-12 w-12 text-red-400 mx-auto mb-4 animate-pulse" />
+          <h2 className="text-xl font-bold text-red-400 mb-2 uppercase tracking-wide">ERRO CRÍTICO</h2>
+          <div className="bg-black/50 p-3 rounded border border-red-500/20 mb-4">
+            <pre className="text-red-400 text-xs whitespace-pre-wrap">
+              [ERROR] {errorMessage}
+            </pre>
+          </div>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-black font-bold py-2 px-4 rounded transition-all duration-300 border border-red-500/50 text-sm uppercase tracking-wide"
+          >
+            🔄 REINICIAR SISTEMA
+          </button>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-black text-green-400 font-mono">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
+        {/* Header Terminal */}
         <div className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                Bem-vindo de volta! 👋
-              </h1>
-              <p className="text-gray-600 dark:text-gray-300">
-                Aqui está um resumo da sua atividade hoje
+          <div className="bg-gray-900/90 backdrop-blur border border-green-500/30 rounded-lg p-4 mb-6">
+            <div className="flex items-center space-x-2 mb-3">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse delay-100"></div>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse delay-200"></div>
+              <span className="ml-3 text-green-400 text-xs">t0p1-dashboard v2.1 | user: {userInfo.username}</span>
+            </div>
+            <div className="bg-black/50 p-3 rounded border border-green-500/20">
+              <pre className="text-green-400 text-sm">
+                root@t0p1:~$ ./dashboard.sh --user={userInfo.username} --role={userInfo.role}{'\n'}
+                [✓] Sistema carregado com sucesso{'\n'}
+                [✓] Módulos de pagamento ativos{'\n'}
+                [✓] Conexão segura estabelecida
+              </pre>
+            </div>
+          </div>
+
+          <div className="text-center mb-6">
+            <FaShieldAlt className="text-4xl text-green-400 mx-auto mb-2 animate-pulse" />
+            <h1 className="text-3xl font-bold text-green-400 mb-2 tracking-wider uppercase">
+              DASHBOARD t0p<span className="text-orange-400">.1</span>
+            </h1>
+            <p className="text-green-300 text-sm uppercase tracking-wide">
+              TERMINAL DE CONTROLE | USER: {userInfo.username}
+            </p>
+          </div>
+        </div>
+
+        {/* Banner do Telegram - Estilo Terminal */}
+        <div className="bg-gray-900/90 backdrop-blur border border-blue-500/30 rounded-lg p-4 mb-6 shadow-lg">
+          <div className="flex items-start justify-between">
+            <div className="flex items-start space-x-3 flex-1">
+              <div className="flex-shrink-0 mt-1">
+                <FaTelegram className="h-5 w-5 text-blue-400 animate-pulse" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-blue-400 mb-2 uppercase tracking-wide">
+                  📡 CANAL DE COMUNICAÇÃO
+                </h3>
+                <p className="text-blue-300 mb-4 text-sm">
+                  Junte-se ao nosso canal oficial no Telegram para receber atualizações em tempo real, 
+                  suporte técnico e notificações importantes do sistema.
+                </p>
+                <a 
+                  href="https://t.me/seu_canal" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-all duration-300 text-sm uppercase tracking-wide"
+                >
+                  <FaTelegram className="mr-2" />
+                  ENTRAR NO CANAL
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Estatísticas - Estilo Terminal */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Total de Pagamentos */}
+          <div className="bg-gray-900/90 backdrop-blur border border-blue-500/30 rounded-lg p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-blue-300 uppercase tracking-wide">TOTAL PAYMENTS</p>
+                <p className="text-2xl font-bold text-blue-400 font-mono">{stats.totalPayments}</p>
+              </div>
+              <div className="p-3 bg-blue-500/20 border border-blue-500/50 rounded">
+                <FaChartLine className="h-6 w-6 text-blue-400" />
+              </div>
+            </div>
+            <div className="mt-2 flex items-center">
+              <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse mr-2"></span>
+              <span className="text-xs text-blue-300 uppercase">ACTIVE</span>
+            </div>
+          </div>
+
+          {/* Valor Total */}
+          <div className="bg-gray-900/90 backdrop-blur border border-green-500/30 rounded-lg p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-green-300 uppercase tracking-wide">TOTAL AMOUNT</p>
+                <p className="text-2xl font-bold text-green-400 font-mono">R$ {stats.totalAmount.toFixed(2)}</p>
+              </div>
+              <div className="p-3 bg-green-500/20 border border-green-500/50 rounded">
+                <FaMoneyBillWave className="h-6 w-6 text-green-400" />
+              </div>
+            </div>
+            <div className="mt-2 flex items-center">
+              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse mr-2"></span>
+              <span className="text-xs text-green-300 uppercase">VERIFIED</span>
+            </div>
+          </div>
+
+          {/* Pagamentos Pendentes */}
+          <div className="bg-gray-900/90 backdrop-blur border border-yellow-500/30 rounded-lg p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-yellow-300 uppercase tracking-wide">PENDING</p>
+                <p className="text-2xl font-bold text-yellow-400 font-mono">{stats.pendingPayments}</p>
+              </div>
+              <div className="p-3 bg-yellow-500/20 border border-yellow-500/50 rounded">
+                <FaClock className="h-6 w-6 text-yellow-400" />
+              </div>
+            </div>
+            <div className="mt-2 flex items-center">
+              <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse mr-2"></span>
+              <span className="text-xs text-yellow-300 uppercase">PROCESSING</span>
+            </div>
+          </div>
+
+          {/* Pagamentos Confirmados */}
+          <div className="bg-gray-900/90 backdrop-blur border border-emerald-500/30 rounded-lg p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-emerald-300 uppercase tracking-wide">CONFIRMED</p>
+                <p className="text-2xl font-bold text-emerald-400 font-mono">{stats.paidPayments}</p>
+              </div>
+              <div className="p-3 bg-emerald-500/20 border border-emerald-500/50 rounded">
+                <FaCheckCircle className="h-6 w-6 text-emerald-400" />
+              </div>
+            </div>
+            <div className="mt-2 flex items-center">
+              <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse mr-2"></span>
+              <span className="text-xs text-emerald-300 uppercase">VERIFIED</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Navegação Principal - Estilo Terminal */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Link
+            href="/dashboard/generate-pix"
+            className="bg-gray-900/90 backdrop-blur border border-blue-500/30 rounded-lg p-6 hover:border-blue-400 transition-all shadow-lg group"
+          >
+            <div className="flex items-center">
+              <div className="p-3 bg-blue-500/20 border border-blue-500/50 rounded group-hover:bg-blue-500/30 transition-all">
+                <FaPlus className="h-6 w-6 text-blue-400" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-bold text-blue-400 uppercase tracking-wide">GERAR PIX</h3>
+                <p className="text-xs text-blue-300 uppercase">CREATE PAYMENT</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/dashboard/wallet"
+            className="bg-gray-900/90 backdrop-blur border border-green-500/30 rounded-lg p-6 hover:border-green-400 transition-all shadow-lg group"
+          >
+            <div className="flex items-center">
+              <div className="p-3 bg-green-500/20 border border-green-500/50 rounded group-hover:bg-green-500/30 transition-all">
+                <FaMoneyBillWave className="h-6 w-6 text-green-400" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-bold text-green-400 uppercase tracking-wide">CARTEIRA</h3>
+                <p className="text-xs text-green-300 uppercase">R$ {userBalance.toFixed(2)}</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/dashboard/history"
+            className="bg-gray-900/90 backdrop-blur border border-orange-500/30 rounded-lg p-6 hover:border-orange-400 transition-all shadow-lg group"
+          >
+            <div className="flex items-center">
+              <div className="p-3 bg-orange-500/20 border border-orange-500/50 rounded group-hover:bg-orange-500/30 transition-all">
+                <FaHistory className="h-6 w-6 text-orange-400" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-bold text-orange-400 uppercase tracking-wide">HISTÓRICO</h3>
+                <p className="text-xs text-orange-300 uppercase">{stats.totalPayments} LOGS</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/dashboard/profile"
+            className="bg-gray-900/90 backdrop-blur border border-purple-500/30 rounded-lg p-6 hover:border-purple-400 transition-all shadow-lg group"
+          >
+            <div className="flex items-center">
+              <div className="p-3 bg-purple-500/20 border border-purple-500/50 rounded group-hover:bg-purple-500/30 transition-all">
+                <FaUser className="h-6 w-6 text-purple-400" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-bold text-purple-400 uppercase tracking-wide">PERFIL</h3>
+                <p className="text-xs text-purple-300 uppercase">{userInfo.role}</p>
+              </div>
+            </div>
+          </Link>
+        </div>
+
+        {/* Layout em 3 colunas - Estilo Terminal */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* Galeria de Selfies - 2 colunas */}
+          <div className="lg:col-span-2">
+            <div className="bg-gray-900/90 backdrop-blur border border-pink-500/30 rounded-lg p-6 mb-6 shadow-lg">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-pink-400 uppercase tracking-wide">📸 PHOTO GALLERY</h2>
+                <Link 
+                  href="/dashboard/photos"
+                  className="text-sm text-pink-400 hover:text-pink-300 font-bold uppercase tracking-wide border border-pink-500/50 px-3 py-1 rounded transition-all"
+                >
+                  ACCESS ALL →
+                </Link>
+              </div>
+              
+              {previewPhotos.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                  {previewPhotos.map((photo) => (
+                    <div key={photo.id} className="aspect-square relative overflow-hidden rounded border border-gray-600">
+                      <img 
+                        src={photo.preview}
+                        alt={photo.originalName || photo.filename}
+                        className={`w-full h-full object-cover ${photo.isPurchased ? 'filter-none' : 'filter blur-sm'}`}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                      {!photo.isPurchased && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center border border-green-500/30">
+                          <div className="text-center text-green-400">
+                            <FaLock className="h-6 w-6 mx-auto mb-2 animate-pulse" />
+                            <span className="text-sm font-bold font-mono">R$ {photo.price.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <FaImages className="mx-auto text-4xl text-gray-400 mb-4" />
+                  <p className="text-gray-400 uppercase tracking-wide">NENHUMA FOTO DISPONÍVEL</p>
+                  <p className="text-sm text-gray-500 mt-2 uppercase">
+                    AGUARDE O ADMIN CARREGAR FOTOS
+                  </p>
+                </div>
+              )}
+              
+              <p className="text-sm text-pink-300 text-center uppercase tracking-wide">
+                ENCRYPTED PHOTO COLLECTION | PREMIUM ACCESS
               </p>
             </div>
-            <div className="mt-4 md:mt-0 flex items-center space-x-4">
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                {currentTime.toLocaleString('pt-BR')}
-              </div>
-              <NotificationCenter />
-              <ThemeToggle />
-            </div>
-          </div>
-        </div>
 
-        {/* Announcement Banner */}
-        <AnnouncementBanner />
-
-        {/* Shoutbox */}
-        <div className="mb-8">
-          <Shoutbox />
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          {/* Saldo da Carteira */}
-          <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-sm p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-100">Saldo da Carteira</p>
-                <p className="text-2xl font-bold">
-                  R$ {userBalance.toFixed(2).replace('.', ',')}
-                </p>
-              </div>
-              <div className="p-3 bg-white/20 rounded-lg">
-                <FaMoneyBillWave className="h-6 w-6 text-white" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center justify-between">
-              <span className="text-sm text-green-100">
-                Disponível para saque
-              </span>
-              <Link 
-                href="/dashboard/withdrawal"
-                className="bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1 rounded-full transition-colors flex items-center"
-              >
-                <FaDownload className="mr-1 h-3 w-3" />
-                Sacar
-              </Link>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total de Pagamentos</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalPayments}</p>
-              </div>
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                <FaChartLine className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center">
-              <FaArrowUp className="h-4 w-4 text-green-500 mr-1" />
-              <span className="text-sm text-green-600 dark:text-green-400 font-medium">
-                +{stats.monthlyGrowth}%
-              </span>
-              <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">vs mês anterior</span>
+            {/* Shoutbox - Estilo Terminal */}
+            <div className="bg-gray-900/90 backdrop-blur border border-cyan-500/30 rounded-lg p-6 shadow-lg">
+              <h3 className="text-lg font-bold text-cyan-400 mb-4 uppercase tracking-wide">💬 GLOBAL CHAT</h3>
+              <Shoutbox />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Valor Total</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  R$ {stats.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-              <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                <FaMoneyBillWave className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center">
-              <FaArrowDown className="h-4 w-4 text-red-500 mr-1" />
-              <span className="text-sm text-red-600 dark:text-red-400 font-medium">
-                {Math.abs(stats.weeklyGrowth)}%
-              </span>
-              <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">vs semana anterior</span>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pagamentos Pendentes</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.pendingPayments}</p>
-              </div>
-              <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
-                <FaClock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
-              </div>
-            </div>
-            <div className="mt-4">
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                Aguardando confirmação
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pagamentos Confirmados</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.paidPayments}</p>
-              </div>
-              <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                <FaCheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-            <div className="mt-4">
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                Taxa de sucesso: {((stats.paidPayments / stats.totalPayments) * 100).toFixed(1)}%
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Sidebar */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Active Users Widget */}
-            <ActiveUsersWidget />
-
-            {/* Quick Actions */}
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Ações Rápidas</h2>
-              <div className="space-y-4">
-                {quickActions.map((action, index) => (
-                  <Link
-                    key={index}
-                    href={action.href}
-                    className="block bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-all duration-300 group"
-                  >
-                    <div className="flex items-center">
-                      <div className={`p-3 rounded-lg ${action.color} transition-colors duration-300`}>
-                        <action.icon className={`h-6 w-6 ${action.iconColor}`} />
-                      </div>
-                      <div className="ml-4 flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                          {action.title}
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {action.description}
-                        </p>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Activity */}
-          <div className="lg:col-span-2">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Atividade Recente</h2>
-              <Link
-                href="/dashboard/payment-history"
-                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium flex items-center"
-              >
-                Ver tudo
-                <FaEye className="ml-1 h-4 w-4" />
-              </Link>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {recentPayments.map((payment, index) => (
-                  <div key={index} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className={`p-2 rounded-lg ${
-                          payment.status === 'paid' 
-                            ? 'bg-green-100 dark:bg-green-900/20' 
-                            : 'bg-yellow-100 dark:bg-yellow-900/20'
-                        }`}>
-                          {payment.status === 'paid' ? (
-                            <FaCheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                          ) : (
-                            <FaClock className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-                          )}
-                        </div>
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {payment.customer}
-                          </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {payment.id} • {payment.time}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                          R$ {payment.amount.toFixed(2)}
-                        </p>
-                        <p className={`text-sm font-medium ${
-                          payment.status === 'paid' 
-                            ? 'text-green-600 dark:text-green-400' 
-                            : 'text-yellow-600 dark:text-yellow-400'
-                        }`}>
-                          {payment.status === 'paid' ? 'Pago' : 'Pendente'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* User Profile Card */}
-            <div className="mt-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Seu Perfil</h3>
-                  <div className="space-y-1 text-blue-100">
-                    <p className="text-sm">Usuário: <span className="font-medium text-white" id="dashboard-username">Carregando...</span></p>
-                    <p className="text-sm">Tipo: <span className="font-medium text-white" id="dashboard-role">Carregando...</span></p>
-                    <p className="text-sm">Status: <span className="font-medium text-white">Ativo</span></p>
-                  </div>
-                </div>
-                <div className="flex flex-col space-y-2">
-                  <Link
-                    href="/dashboard/profile"
-                    className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors text-center"
-                  >
-                    Editar Perfil
-                  </Link>
-                  <Link
-                    href="/logout"
-                    className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm font-medium transition-colors text-center flex items-center justify-center"
-                  >
-                    <FaSignOutAlt className="mr-2 h-4 w-4" />
-                    Sair
-                  </Link>
-                </div>
-              </div>
+          {/* Sidebar - 1 coluna - Estilo Terminal */}
+          <div className="space-y-6">
+            {/* Usuários Online */}
+            <div className="bg-gray-900/90 backdrop-blur border border-emerald-500/30 rounded-lg p-6 shadow-lg">
+              <h3 className="text-lg font-bold text-emerald-400 mb-4 uppercase tracking-wide">👥 ONLINE USERS</h3>
+              <ActiveUsersWidget />
             </div>
           </div>
         </div>

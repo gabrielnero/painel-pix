@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       const stats = {
         total: allPayments.length,
         paid: allPayments.filter(p => p.status === 'paid').length,
-        pending: allPayments.filter(p => p.status === 'pending').length,
+        pending: allPayments.filter(p => ['pending', 'awaiting_payment'].includes(p.status)).length,
         expired: allPayments.filter(p => p.status === 'expired').length,
         cancelled: allPayments.filter(p => p.status === 'cancelled').length,
         totalAmount: allPayments.reduce((sum, p) => sum + p.amount, 0),

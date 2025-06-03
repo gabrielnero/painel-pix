@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       await connectToDatabase();
 
       // Buscar o usuário
-      const user = await User.findById(authResult.userId);
+      const user = await User.findById(authResult.userId).select('balance');
       if (!user) {
         return NextResponse.json(
           { success: false, message: 'Usuário não encontrado' },
@@ -44,13 +44,9 @@ export async function GET(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('Erro ao buscar saldo do usuário:', error);
+    console.error('Erro ao buscar saldo:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: 'Erro interno do servidor',
-        error: error instanceof Error ? error.message : String(error)
-      },
+      { success: false, message: 'Erro interno do servidor' },
       { status: 500 }
     );
   }

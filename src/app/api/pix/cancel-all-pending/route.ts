@@ -20,10 +20,10 @@ export async function POST(request: NextRequest) {
     // Usar mongoose para buscar e atualizar
     const { Payment } = await import('@/lib/models');
     
-    // Buscar todos os pagamentos pendentes do usuário
+    // Buscar todos os pagamentos pendentes do usuário (incluindo awaiting_payment)
     const pendingPayments = await Payment.find({
       userId: authResult.userId,
-      status: 'pending'
+      status: { $in: ['pending', 'awaiting_payment'] }
     });
 
     if (pendingPayments.length === 0) {
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const result = await Payment.updateMany(
       {
         userId: authResult.userId,
-        status: 'pending'
+        status: { $in: ['pending', 'awaiting_payment'] }
       },
       {
         $set: {

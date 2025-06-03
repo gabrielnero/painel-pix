@@ -201,10 +201,19 @@ export default function UserInfo() {
               onClick={async () => {
                 setShowDropdown(false);
                 try {
-                  await fetch('/api/auth/logout', { method: 'POST' });
+                  const response = await fetch('/api/auth/logout', { method: 'POST' });
+                  if (response.ok) {
+                    // Limpar dados locais
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    // Redirecionar para home
+                    window.location.href = '/';
+                  } else {
+                    console.error('Erro na resposta do logout');
+                    window.location.href = '/';
+                  }
                 } catch (error) {
                   console.error('Erro ao fazer logout:', error);
-                } finally {
                   // Sempre redirecionar, mesmo se houver erro
                   window.location.href = '/';
                 }

@@ -46,7 +46,7 @@ export async function POST(
     }
 
     // Verificar se o pagamento pode ser cancelado
-    if (payment.status !== 'pending' && payment.status !== 'awaiting_payment') {
+    if (!['pending', 'awaiting_payment'].includes(payment.status)) {
       return NextResponse.json(
         { 
           success: false, 

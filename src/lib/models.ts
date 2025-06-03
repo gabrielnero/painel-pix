@@ -137,6 +137,29 @@ export interface INotification extends Document {
   expiresAt?: Date;
 }
 
+export interface IPhoto extends Document {
+  filename: string;
+  originalName: string;
+  imageData: string; // Base64 encoded image
+  price: number;
+  category: string;
+  ageCategory: string;
+  uploadedBy: mongoose.Types.ObjectId;
+  uploadedAt: Date;
+  isActive: boolean;
+  likes: number;
+  views: number;
+  purchases: number;
+  revenue: number;
+  purchasedBy: mongoose.Types.ObjectId[];
+  metadata?: {
+    size: number;
+    mimeType: string;
+    width?: number;
+    height?: number;
+  };
+}
+
 // Definir esquemas
 const UserSchema = new Schema<IUser>({
   username: {
@@ -595,6 +618,83 @@ NotificationSchema.index({ userId: 1, createdAt: -1 });
 NotificationSchema.index({ userId: 1, read: 1 });
 NotificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+const PhotoSchema = new Schema<IPhoto>({
+  filename: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  originalName: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  imageData: {
+    type: String,
+    required: true
+  },
+  price: {
+    type: Number,
+    required: true,
+    min: 0,
+    default: 20
+  },
+  category: {
+    type: String,
+    enum: ['SELFIE'],
+    default: 'SELFIE',
+    required: true
+  },
+  ageCategory: {
+    type: String,
+    enum: ['18-25 anos', '26-35 anos', '36-45 anos', '46+ anos'],
+    required: true
+  },
+  uploadedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  uploadedAt: {
+    type: Date,
+    default: Date.now
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  likes: {
+    type: Number,
+    default: 0
+  },
+  views: {
+    type: Number,
+    default: 0
+  },
+  purchases: {
+    type: Number,
+    default: 0
+  },
+  revenue: {
+    type: Number,
+    default: 0
+  },
+  purchasedBy: [{
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  metadata: {
+    size: { type: Number },
+    mimeType: { type: String },
+    width: { type: Number },
+    height: { type: Number }
+  }
+});
+
+PhotoSchema.index({ uploadedBy: 1, uploadedAt: -1 });
+PhotoSchema.index({ category: 1, ageCategory: 1, isActive: 1 });
+PhotoSchema.index({ isActive: 1, uploadedAt: -1 });
+
 // Função auxiliar para lidar com os modelos no ambiente Next.js
 const getModel = <T extends Document>(
   modelName: string,
@@ -621,4 +721,5 @@ export const SystemConfig = getModel<ISystemConfig>('SystemConfig', SystemConfig
 export const ProfileComment = getModel<IProfileComment>('ProfileComment', ProfileCommentSchema);
 export const ShoutboxMessage = getModel<IShoutboxMessage>('ShoutboxMessage', ShoutboxMessageSchema);
 export const Withdrawal = getModel<IWithdrawal>('Withdrawal', WithdrawalSchema);
-export const Notification = getModel<INotification>('Notification', NotificationSchema); 
+export const Notification = (mongoose.models.Notification as Model<INotification>) || mongoose.model<INotification>('Notification', NotificationSchema);
+export const Photo = (mongoose.models.Photo as Model<IPhoto>) || mongoose.model<IPhoto>('Photo', PhotoSchema); 

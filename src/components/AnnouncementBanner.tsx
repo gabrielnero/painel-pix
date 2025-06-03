@@ -9,17 +9,29 @@ export default function AnnouncementBanner() {
   const [telegramLink, setTelegramLink] = useState('');
   const [isVisible, setIsVisible] = useState(true);
   const [isDismissed, setIsDismissed] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Verificar se está no cliente
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
+    if (!isClient) return;
+    
     loadAnnouncement();
     
-    // Verificar se foi dispensado nesta sessão
-    const dismissed = sessionStorage.getItem('announcement-dismissed');
-    if (dismissed) {
-      setIsDismissed(true);
-      setIsVisible(false);
+    // Verificar se foi dispensado nesta sessão (apenas no cliente)
+    try {
+      const dismissed = sessionStorage.getItem('announcement-dismissed');
+      if (dismissed) {
+        setIsDismissed(true);
+        setIsVisible(false);
+      }
+    } catch (error) {
+      console.warn('SessionStorage não disponível:', error);
     }
-  }, []);
+  }, [isClient]);
 
   const loadAnnouncement = async () => {
     try {
@@ -37,12 +49,36 @@ export default function AnnouncementBanner() {
   const handleDismiss = () => {
     setIsVisible(false);
     setIsDismissed(true);
-    sessionStorage.setItem('announcement-dismissed', 'true');
+    
+    // Salvar no sessionStorage apenas se disponível
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      try {
+        sessionStorage.setItem('announcement-dismissed', 'true');
+      } catch (error) {
+        console.warn('Erro ao salvar no sessionStorage:', error);
+      }
+    }
   };
 
   const openTelegram = () => {
-    window.open(telegramLink, '_blank', 'noopener,noreferrer');
+    // Verificar se window está disponível
+    if (typeof window !== 'undefined' && window.open) {
+      try {
+        window.open(telegramLink, '_blank', 'noopener,noreferrer');
+      } catch (error) {
+        console.warn('Erro ao abrir link:', error);
+        // Fallback: tentar usar location.href
+        if (typeof window !== 'undefined' && window.location) {
+          window.location.href = telegramLink;
+        }
+      }
+    }
   };
+
+  // Não renderizar nada durante o SSR
+  if (!isClient) {
+    return null;
+  }
 
   if (!isVisible || isDismissed || !announcement) {
     return null;

@@ -10,7 +10,8 @@ import {
   FaTachometerAlt, 
   FaSignOutAlt,
   FaBars,
-  FaTimes
+  FaTimes,
+  FaImages
 } from 'react-icons/fa';
 
 interface AdminLayoutProps {
@@ -38,6 +39,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'Usuários', path: '/admin/users', icon: <FaUsersCog /> },
     { name: 'Convites', path: '/admin/invites', icon: <FaTicketAlt /> },
     { name: 'Pagamentos', path: '/admin/payments', icon: <FaMoneyBillWave /> },
+    { name: 'Fotos', path: '/admin/photos', icon: <FaImages /> },
   ];
 
   return (

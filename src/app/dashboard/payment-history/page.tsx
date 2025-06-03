@@ -20,7 +20,7 @@ import {
 interface Payment {
   id: string;
   amount: number;
-  status: 'paid' | 'pending' | 'expired' | 'cancelled';
+  status: 'paid' | 'pending' | 'expired' | 'cancelled' | 'awaiting_payment';
   description: string;
   customer: {
     name: string;
@@ -433,7 +433,7 @@ export default function PaymentHistoryPage() {
                       >
                         <FaCopy />
                       </button>
-                      {payment.status === 'pending' && (
+                      {['pending', 'awaiting_payment'].includes(payment.status) && (
                         <button
                           onClick={() => cancelPayment(payment.id)}
                           disabled={cancelingPayment === payment.id}
@@ -602,7 +602,7 @@ export default function PaymentHistoryPage() {
                 </div>
                 
                 {/* Botões de ação */}
-                {selectedPayment.status === 'pending' && (
+                {['pending', 'awaiting_payment'].includes(selectedPayment.status) && (
                   <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                     <button
                       onClick={() => cancelPayment(selectedPayment.id)}
