@@ -66,7 +66,11 @@ export default function WalletPage() {
   const cryptoOptions = [
     { symbol: 'BTC', name: 'Bitcoin', rate: 98000 },
     { symbol: 'ETH', name: 'Ethereum', rate: 3500 },
-    { symbol: 'USDT', name: 'Tether USD', rate: 5.5 }
+    { symbol: 'TRX', name: 'Tron', rate: 0.20 },
+    { symbol: 'USDT-ETH', name: 'USDT (Ethereum)', rate: 5.5 },
+    { symbol: 'USDT-POLYGON', name: 'USDT (Polygon)', rate: 5.5 },
+    { symbol: 'SOL', name: 'Solana', rate: 200 },
+    { symbol: 'LTC', name: 'Litecoin', rate: 120 }
   ];
 
   const calculateCryptoAmount = () => {
