@@ -208,8 +208,8 @@ export default function DynamicHeader() {
 
       {/* Modal de Depósito Crypto */}
       {showDepositModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto my-4">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -217,7 +217,7 @@ export default function DynamicHeader() {
                 </h3>
                 <button
                   onClick={() => setShowDepositModal(false)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl"
                 >
                   ✕
                 </button>
@@ -228,19 +228,55 @@ export default function DynamicHeader() {
                   Deposite criptomoedas para usar em nossos serviços
                 </p>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-4 border-2 border-orange-200 dark:border-orange-700 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                {/* Grid com todas as criptomoedas disponíveis */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="p-3 border-2 border-orange-200 dark:border-orange-700 rounded-lg bg-orange-50 dark:bg-orange-900/20">
                     <div className="text-center">
-                      <FaBitcoin className="text-3xl text-orange-500 mx-auto mb-2" />
-                      <span className="text-sm font-medium">Bitcoin</span>
+                      <FaBitcoin className="text-2xl text-orange-500 mx-auto mb-1" />
+                      <span className="text-xs font-medium block">Bitcoin</span>
                       <p className="text-xs text-gray-500">BTC</p>
                     </div>
                   </div>
-                  <div className="p-4 border-2 border-blue-200 dark:border-blue-700 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                  <div className="p-3 border-2 border-blue-200 dark:border-blue-700 rounded-lg bg-blue-50 dark:bg-blue-900/20">
                     <div className="text-center">
-                      <div className="text-3xl text-blue-500 mx-auto mb-2">Ξ</div>
-                      <span className="text-sm font-medium">Ethereum</span>
+                      <div className="text-2xl text-blue-500 mx-auto mb-1">Ξ</div>
+                      <span className="text-xs font-medium block">Ethereum</span>
                       <p className="text-xs text-gray-500">ETH</p>
+                    </div>
+                  </div>
+                  <div className="p-3 border-2 border-red-200 dark:border-red-700 rounded-lg bg-red-50 dark:bg-red-900/20">
+                    <div className="text-center">
+                      <div className="text-2xl text-red-500 mx-auto mb-1 font-bold">⚡</div>
+                      <span className="text-xs font-medium block">Tron</span>
+                      <p className="text-xs text-gray-500">TRX</p>
+                    </div>
+                  </div>
+                  <div className="p-3 border-2 border-green-200 dark:border-green-700 rounded-lg bg-green-50 dark:bg-green-900/20">
+                    <div className="text-center">
+                      <div className="text-2xl text-green-500 mx-auto mb-1 font-bold">₮</div>
+                      <span className="text-xs font-medium block">USDT ETH</span>
+                      <p className="text-xs text-gray-500">ERC-20</p>
+                    </div>
+                  </div>
+                  <div className="p-3 border-2 border-purple-200 dark:border-purple-700 rounded-lg bg-purple-50 dark:bg-purple-900/20">
+                    <div className="text-center">
+                      <div className="text-2xl text-purple-500 mx-auto mb-1 font-bold">₮</div>
+                      <span className="text-xs font-medium block">USDT POL</span>
+                      <p className="text-xs text-gray-500">Polygon</p>
+                    </div>
+                  </div>
+                  <div className="p-3 border-2 border-yellow-200 dark:border-yellow-700 rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
+                    <div className="text-center">
+                      <div className="text-2xl text-yellow-500 mx-auto mb-1 font-bold">◎</div>
+                      <span className="text-xs font-medium block">Solana</span>
+                      <p className="text-xs text-gray-500">SOL</p>
+                    </div>
+                  </div>
+                  <div className="p-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/20 sm:col-span-1">
+                    <div className="text-center">
+                      <div className="text-2xl text-gray-500 mx-auto mb-1 font-bold">Ł</div>
+                      <span className="text-xs font-medium block">Litecoin</span>
+                      <p className="text-xs text-gray-500">LTC</p>
                     </div>
                   </div>
                 </div>
@@ -248,7 +284,7 @@ export default function DynamicHeader() {
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
                   <p className="text-sm text-blue-800 dark:text-blue-200">
                     ✨ <strong>Vantagens do Crypto:</strong> Transações rápidas, seguras e globais. 
-                    Valor mínimo: $100 USD
+                    Valor mínimo: <strong>R$ 20,00</strong>
                   </p>
                 </div>
 
